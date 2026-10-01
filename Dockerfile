@@ -3,7 +3,7 @@
 # ==============================================================================
 
 # --- Étape 1 : Build Angular de production ---
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 # Dépendances d'abord (mise en cache Docker tant que le lockfile ne change pas)
