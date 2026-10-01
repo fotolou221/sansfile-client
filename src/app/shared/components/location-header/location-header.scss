@@ -1,0 +1,228 @@
+:host {
+  display: block;
+}
+
+.location-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-surface, #ffffff);
+
+  @media (min-width: 640px) {
+    padding: 12px 24px;
+  }
+}
+
+.location-header__selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary, #111827);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.location-header__salon-toggle {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  border-radius: 9999px;
+  padding: 0 8px 0 12px;
+  background: #f0fdf4;
+  color: #15803d;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.72;
+    transform: none;
+  }
+
+  &--closed {
+    border-color: rgba(220, 38, 38, 0.26);
+    background: #fef2f2;
+    color: #dc2626;
+
+    .location-header__salon-switch {
+      background: #dc2626;
+    }
+  }
+}
+
+.location-header__salon-label {
+  min-width: 52px;
+  text-align: left;
+}
+
+.location-header__salon-switch {
+  display: inline-flex;
+  width: 36px;
+  height: 22px;
+  flex: none;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 2px;
+  background: #dc2626;
+  transition: background-color 0.15s ease;
+
+  span {
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: #ffffff;
+    transform: translateX(0);
+    transition: transform 0.15s ease;
+  }
+
+  &--on {
+    background: #16a34a;
+
+    span {
+      transform: translateX(14px);
+    }
+  }
+}
+
+.location-header__pin-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  color: #ef4444;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.location-header__text {
+  color: var(--text-primary, #111827);
+}
+
+.location-header__chevron {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary, #6b7280);
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.location-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.location-header__action-btn {
+  position: relative;
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-primary, #111827);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    background: var(--bg-card-hover, #f3f4f6);
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+// Heart icon in header: neutral text-primary, NOT red
+.location-header__fav-btn {
+  color: var(--text-primary, #111827);
+}
+
+// Badge in header: primary brand or accent amber (identical styling for favorites & notifications)
+.location-header__fav-badge,
+.location-header__notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: var(--accent, #f59e0b);
+  color: #ffffff;
+  font-size: 0.625rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--bg-surface, #ffffff);
+}
+
+.location-header__spacer {
+  height: 1px;
+}
+
+// ── Dark Mode ────────────────────────────────────────────────
+:host-context(body.dark-theme) {
+  .location-header {
+    background: #1c2541 !important;
+  }
+
+  .location-header__action-btn {
+    color: #f8fafc !important;
+  }
+
+  .location-header__salon-toggle {
+    border-color: rgba(34, 197, 94, 0.3) !important;
+    background: rgba(22, 163, 74, 0.14) !important;
+    color: #86efac !important;
+
+    &--closed {
+      border-color: rgba(248, 113, 113, 0.36) !important;
+      background: rgba(220, 38, 38, 0.16) !important;
+      color: #fca5a5 !important;
+
+      .location-header__salon-switch {
+        background: #ef4444 !important;
+      }
+    }
+  }
+
+  .location-header__fav-badge,
+  .location-header__notif-badge {
+    background: #f59e0b !important;
+    border-color: #1c2541 !important;
+  }
+}

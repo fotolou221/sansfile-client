@@ -1,0 +1,130 @@
+# ==============================================================================
+# Frontend SansFile (Angular PWA + Nginx) — intégration et déploiement continus
+#
+#   Pull request vers main → formatage, tests unitaires, build de production, build de l'image (non publiée)
+#   Push sur main           → idem, puis publication sur GHCR et déploiement sur le VPS
+#   « Run workflow »        → relance manuelle (déploie si lancé sur main)
+#   Retour à une version    → relancer le job « Déploiement » d'une exécution précédente
+#
+# À configurer une fois dans GitHub → Settings → Environments → « production » :
+#   Secrets   VPS_HOST, VPS_USER, VPS_SSH_KEY (clé privée dédiée au déploiement),
+#             VPS_SSH_KNOWN_HOSTS (résultat de : ssh-keyscan -H <hôte>)
+#   Variables VPS_PORT (défaut 22), VPS_APP_DIR (défaut /opt/sansfile), PRODUCTION_URL (lien affiché)
+#   Conseillé « Required reviewers » : chaque mise en production attend une validation manuelle.
+# ==============================================================================
+name: Frontend CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Une PR mise à jour annule sa vérification en cours ; main va toujours au bout
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  SERVICE: sansfile-client
+
+jobs:
+  verify:
+    name: Formatage, tests et build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Formatage (Prettier)
+        run: npm run format:check
+      - name: Tests unitaires (Vitest)
+        run: npm run test:ci
+      - name: Build de production (budgets de taille vérifiés)
+        run: npm run build
+
+  image:
+    name: Image Docker
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Connexion à GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Nom de l'image (GHCR n'accepte que des minuscules)
+        id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${SERVICE}" >> "$GITHUB_OUTPUT"
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.name.outputs.image }}
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build (et publication hors pull request)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ env.SERVICE }}
+          cache-to: type=gha,mode=max,scope=${{ env.SERVICE }}
+
+  deploy:
+    name: Déploiement en production
+    needs: image
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Clé SSH de déploiement
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Déploiement (santé vérifiée, retour arrière automatique)
+        env:
+          TARGET: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          SSH_PORT: ${{ vars.VPS_PORT || '22' }}
+          APP_DIR: ${{ vars.VPS_APP_DIR || '/opt/sansfile' }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${SERVICE}:sha-${GITHUB_SHA}"
+          remote() { ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o BatchMode=yes "$TARGET" "$@"; }
+          # Jeton GitHub éphémère : le VPS ne garde aucun identifiant du registre
+          printf '%s' "$GHCR_TOKEN" | remote "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin" > /dev/null
+          trap 'remote "docker logout ghcr.io" > /dev/null || true' EXIT
+          remote "bash -s -- '$SERVICE' '$image' '$APP_DIR'" < .github/scripts/deploy.sh

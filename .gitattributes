@@ -1,0 +1,15 @@
+# Fins de ligne normalisées dans le dépôt
+* text=auto
+
+# Scripts exécutés sous Linux (CI, VPS)
+*.sh text eol=lf
+
+# Binaires
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary

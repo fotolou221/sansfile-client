@@ -1,0 +1,246 @@
+import { ChangeDetectorRef, Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { AdminDataService, PlatformSettings } from '../../services/admin-data.service';
+import { AdminConfirmService } from '../../services/admin-confirm.service';
+import { ThemeService } from '../../../../shared/services/theme.service';
+
+@Component({
+  selector: 'app-admin-settings-page',
+  imports: [FormsModule],
+  template: `
+    <div class="admin-page">
+      <!-- Page Header -->
+      <div class="admin-page__header">
+        <div>
+          <h1>Paramètres de la Plateforme</h1>
+          <p>
+            Configurez les informations globales, coordonnées de support et règles métier de
+            SansFile.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="admin-btn admin-btn--primary"
+          (click)="saveSettings()"
+          [disabled]="saving()"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          <span>{{ saving() ? 'Enregistrement…' : 'Enregistrer les paramètres' }}</span>
+        </button>
+      </div>
+
+      <!-- Success Toast -->
+      @if (savedToast()) {
+        <div class="admin-toast-success">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            style="width: 18px; height: 18px;"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <span>Paramètres enregistrés avec succès !</span>
+        </div>
+      }
+
+      @if (saveError()) {
+        <div class="admin-toast-error" role="alert">
+          <span>{{ saveError() }}</span>
+        </div>
+      }
+
+      <!-- Settings Cards Grid -->
+      <div class="admin-settings-grid">
+        <!-- Card 1: Coordonnées & Support -->
+        <div class="admin-card">
+          <div class="admin-card__title">
+            <h3>Informations Générales &amp; Support</h3>
+            <p>Coordonnées affichées sur le site vitrine et l'application mobile.</p>
+          </div>
+
+          <div class="admin-form">
+            <div class="admin-form__field">
+              <label>Nom de l'application</label>
+              <input type="text" [(ngModel)]="form.appName" name="appName" />
+            </div>
+
+            <div class="admin-form__field">
+              <label>E-mail de contact support</label>
+              <input type="email" [(ngModel)]="form.contactEmail" name="contactEmail" />
+            </div>
+
+            <div class="admin-form__field">
+              <label>Téléphone &amp; WhatsApp Support</label>
+              <input type="text" [(ngModel)]="form.contactPhone" name="contactPhone" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Horaires & Commission -->
+        <div class="admin-card">
+          <div class="admin-card__title">
+            <h3>Règles Métier &amp; Horaires</h3>
+            <p>Paramètres opérationnels par défaut.</p>
+          </div>
+
+          <div class="admin-form">
+            <div class="admin-form__row">
+              <div class="admin-form__field">
+                <label>Ouverture par défaut</label>
+                <input type="time" [(ngModel)]="form.openingTime" name="openingTime" />
+              </div>
+              <div class="admin-form__field">
+                <label>Fermeture par défaut</label>
+                <input type="time" [(ngModel)]="form.closingTime" name="closingTime" />
+              </div>
+            </div>
+
+            <div class="admin-form__field">
+              <label>Taux de commission plateforme (%)</label>
+              <input
+                type="number"
+                [(ngModel)]="form.commissionRate"
+                name="commissionRate"
+                min="0"
+                max="50"
+              />
+            </div>
+
+            <div class="admin-toggle-field">
+              <div>
+                <strong>Réservation pour proches</strong>
+                <span>Permettre aux clients de prendre un ticket pour un tiers</span>
+              </div>
+              <input
+                type="checkbox"
+                [(ngModel)]="form.allowRelativeBooking"
+                name="allowRelativeBooking"
+              />
+            </div>
+
+            <div class="admin-toggle-field admin-toggle-field--warning">
+              <div>
+                <strong>Mode Maintenance</strong>
+                <span>Suspendre temporairement l'émission de nouveaux tickets</span>
+              </div>
+              <input type="checkbox" [(ngModel)]="form.maintenanceMode" name="maintenanceMode" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Thème & Apparence -->
+        <div class="admin-card">
+          <div class="admin-card__title">
+            <h3>Apparence &amp; Thème</h3>
+            <p>Personnalisez l'affichage de l'interface d'administration et de l'application.</p>
+          </div>
+
+          <div class="admin-theme-selector">
+            <button
+              type="button"
+              class="admin-theme-btn"
+              [class.admin-theme-btn--active]="themeService.theme() === 'light'"
+              (click)="themeService.setTheme('light')"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+              <span>Mode Clair</span>
+            </button>
+
+            <button
+              type="button"
+              class="admin-theme-btn"
+              [class.admin-theme-btn--active]="themeService.theme() === 'dark'"
+              (click)="themeService.setTheme('dark')"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+              <span>Mode Sombre</span>
+            </button>
+
+            <button
+              type="button"
+              class="admin-theme-btn"
+              [class.admin-theme-btn--active]="themeService.theme() === 'system'"
+              (click)="themeService.setTheme('system')"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              <span>Système (Auto)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  styleUrl: './admin-settings-page.scss',
+})
+export class AdminSettingsPage {
+  private readonly data = inject(AdminDataService);
+  private readonly confirmService = inject(AdminConfirmService);
+  protected readonly themeService = inject(ThemeService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  protected form: PlatformSettings = { ...this.data.settings() };
+  protected readonly savedToast = signal<boolean>(false);
+  protected readonly saveError = signal<string | null>(null);
+  protected readonly saving = signal<boolean>(false);
+
+  constructor() {
+    // Le formulaire part des valeurs réellement en base, pas des valeurs par défaut du service
+    this.data.loadSettings().subscribe((settings) => {
+      this.form = { ...settings };
+      this.cdr.markForCheck();
+    });
+  }
+
+  protected async saveSettings(): Promise<void> {
+    if (this.form.maintenanceMode && !this.data.settings().maintenanceMode) {
+      const confirmed = await this.confirmService.confirm({
+        title: 'Activation du Mode Maintenance',
+        message:
+          'Êtes-vous sûr de vouloir activer le mode maintenance ? Tous les salons seront temporairement indisponibles pour la prise de ticket.',
+        confirmLabel: 'Activer la maintenance',
+        variant: 'warning',
+      });
+      if (!confirmed) {
+        this.form.maintenanceMode = false;
+        this.cdr.markForCheck();
+        return;
+      }
+    }
+    this.saving.set(true);
+    this.saveError.set(null);
+    this.data.updateSettings(this.form).subscribe({
+      next: (saved) => {
+        this.form = { ...saved };
+        this.saving.set(false);
+        this.savedToast.set(true);
+        setTimeout(() => this.savedToast.set(false), 3000);
+      },
+      error: (err: Error) => {
+        this.saving.set(false);
+        this.saveError.set(err.message);
+      },
+    });
+  }
+}

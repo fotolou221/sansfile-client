@@ -1,0 +1,10 @@
+node_modules
+dist
+.angular
+.npm-cache
+.vscode
+branding
+scripts
+db.json
+Dockerfile
+.dockerignore

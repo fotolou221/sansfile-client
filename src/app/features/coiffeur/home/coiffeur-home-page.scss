@@ -1,0 +1,1010 @@
+:host {
+  display: block;
+}
+
+.coiffeur-home {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 16px 96px;
+  background: var(--bg-primary, #ffffff);
+}
+
+/* Bloc fixe (hero + QR) rendu dans le header sticky : reste visible pendant
+   que seule la liste des clients défile en dessous. */
+.coiffeur-home__pinned {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 16px 12px;
+  background: var(--bg-primary, #ffffff);
+
+  /* La bande "Clients dans la file" clôt le bloc fixe : on la rapproche
+     de la carte QR pour remonter la section, sans creuser sous elle. */
+  .coiffeur-home__section-title {
+    margin-top: -4px;
+  }
+}
+
+.coiffeur-home__hero {
+  margin-bottom: -2px;
+}
+
+.coiffeur-home__hero-top {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.coiffeur-home__avatar {
+  display: grid;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary, #1e5af0), #0d3eb8);
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(30, 90, 240, 0.28);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.coiffeur-home__identity {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.coiffeur-home__title {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary, #0f172a);
+  font-size: 1.22rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.coiffeur-home__user-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary, #0f172a);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coiffeur-home__wave {
+  display: inline-block;
+  flex: none;
+  transform-origin: 70% 70%;
+  animation: wave-hand 2.4s ease-in-out infinite;
+}
+
+@keyframes wave-hand {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  10%,
+  30% {
+    transform: rotate(14deg);
+  }
+
+  20% {
+    transform: rotate(-8deg);
+  }
+
+  40% {
+    transform: rotate(-4deg);
+  }
+
+  50% {
+    transform: rotate(10deg);
+  }
+
+  60% {
+    transform: rotate(0deg);
+  }
+}
+
+.coiffeur-home__salon-toggle {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  border-radius: 9999px;
+  padding: 0 7px 0 10px;
+  background: #f0fdf4;
+  color: #15803d;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.72;
+    transform: none;
+  }
+
+  &--closed {
+    border-color: rgba(220, 38, 38, 0.26);
+    background: #fef2f2;
+    color: #dc2626;
+
+    .coiffeur-home__salon-switch {
+      background: #dc2626;
+    }
+  }
+}
+
+.coiffeur-home__salon-label {
+  min-width: 43px;
+  text-align: left;
+}
+
+.coiffeur-home__salon-switch {
+  display: inline-flex;
+  width: 32px;
+  height: 20px;
+  flex: none;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 2px;
+  background: #dc2626;
+  transition: background-color 0.15s ease;
+
+  span {
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: #ffffff;
+    transform: translateX(0);
+    transition: transform 0.15s ease;
+  }
+
+  &--on {
+    background: #16a34a;
+
+    span {
+      transform: translateX(12px);
+    }
+  }
+}
+
+.coiffeur-home__subtitle {
+  margin: 5px 0 0;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.845rem;
+  font-weight: 450;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.coiffeur-home__queue-error {
+  margin: -4px 0 0;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+/* ── Carte QR code du salon ──────────────────────────────── */
+.qr-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid rgba(30, 90, 240, 0.14);
+  border-radius: 20px;
+  padding: 14px;
+  background: linear-gradient(135deg, #eef2ff 0%, #f7f9ff 60%);
+}
+
+.qr-card__qr-btn {
+  flex: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+  transition: transform 0.15s ease;
+  -webkit-user-select: none;
+  user-select: none;
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  app-qr-code {
+    pointer-events: none;
+  }
+
+  canvas,
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+.qr-card__body {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qr-card__eyebrow {
+  color: var(--primary, #1e5af0);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.qr-card__title {
+  margin: 0 0 10px;
+  color: var(--text-primary, #0f172a);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.qr-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.qr-card__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  border: 1.5px solid rgba(30, 90, 240, 0.3);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: var(--primary, #1e5af0);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 800;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
+
+  svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  &:hover {
+    background: var(--primary, #1e5af0);
+    color: #ffffff;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+/* ── Squelette de la carte QR (le temps que le salon charge) ── */
+.qr-card--skeleton {
+  pointer-events: none;
+}
+
+.qr-card__skeleton-line,
+.qr-card__skeleton-pill,
+.qr-card__skeleton-qr {
+  display: block;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #dbe3fb 25%, #eef2ff 37%, #dbe3fb 63%);
+  background-size: 400% 100%;
+  animation: qr-card-shimmer 1.4s ease infinite;
+}
+
+.qr-card__skeleton-line {
+  height: 10px;
+
+  &--eyebrow {
+    width: 70px;
+    height: 8px;
+    margin-bottom: 8px;
+  }
+
+  &--title {
+    width: 100%;
+    margin-bottom: 6px;
+  }
+
+  &--title-short {
+    width: 65%;
+    margin-bottom: 14px;
+  }
+}
+
+.qr-card__skeleton-pill {
+  width: 84px;
+  height: 32px;
+  border-radius: 999px;
+}
+
+.qr-card__skeleton-qr {
+  flex: none;
+  width: 128px;
+  height: 128px;
+  border-radius: 20px;
+}
+
+@keyframes qr-card-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ── QR code en plein écran ──────────────────────────────── */
+.qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  animation: qrOverlayFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.qr-overlay__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+  background: #ffffff;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: qrOverlayScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.qr-overlay__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+}
+
+.qr-overlay__qr {
+  -webkit-user-select: none;
+  user-select: none;
+
+  canvas,
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+.qr-overlay__salon-name {
+  margin: 16px 0 2px;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.qr-overlay__hint {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+@keyframes qrOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes qrOverlayScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.coiffeur-home__clients {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coiffeur-home__section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.coiffeur-home__section-title > div {
+  min-width: 0;
+  flex: 1 1 140px;
+}
+
+.coiffeur-home__section-title h2 {
+  margin: 0;
+  color: var(--text-primary, #0f172a);
+  font-size: 1.08rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.coiffeur-home__section-title span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.coiffeur-home__manage-btn {
+  min-height: 36px;
+  flex: none;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 0 13px;
+  background: #eff6ff;
+  color: var(--primary, #1e5af0);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.coiffeur-home__client-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.queue-card {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  border: 1px solid #f1f5f9;
+  border-radius: 18px;
+  padding: 16px;
+  background: var(--bg-card, #ffffff);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &--current {
+    border: 1.5px solid rgba(30, 90, 240, 0.35);
+    background: #f8fbff;
+  }
+
+  &--waiting {
+    border: 1px solid #eef2f6;
+  }
+}
+
+.queue-card__top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.queue-card__avatar-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+
+.queue-card__avatar-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1.5px solid rgba(30, 90, 240, 0.2);
+}
+
+.queue-card__avatar-num {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #1e293b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+
+  &--current {
+    background: var(--primary, #1e5af0);
+    color: #ffffff;
+    border-color: #ffffff;
+  }
+}
+
+.queue-card__pos-box {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  place-items: center;
+  border-radius: 14px;
+  padding: 0 8px;
+  background: var(--primary-light, #eef2ff);
+  color: var(--primary, #1e5af0);
+  font-size: 1.05rem;
+  font-weight: 800;
+
+  &--current {
+    background: var(--primary, #1e5af0);
+    color: #ffffff;
+  }
+}
+
+.queue-card__info {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.queue-card__name {
+  overflow: hidden;
+  color: var(--text-primary, #0f172a);
+  font-size: 0.98rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card__phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card__phone-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--text-muted, #94a3b8);
+}
+
+.queue-card__meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.queue-card__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+.queue-card__time-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.queue-card__status-tag {
+  flex: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+
+  &--current {
+    background: var(--primary, #1e5af0);
+    color: #ffffff;
+  }
+
+  &--waiting {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+}
+
+.queue-card__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+}
+
+.queue-card__sub-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+
+  &--chair {
+    border: 1px solid #dbeafe;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  &--waiting {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+  }
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563eb;
+  animation: pulseDot 1.8s infinite;
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.95);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+.queue-card__open-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary, #1e5af0);
+  font-size: 0.78rem;
+  font-weight: 850;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.queue-card__bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.queue-card__quick-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1.5px solid #dbeafe;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.18s ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.coiffeur-home__loading,
+.coiffeur-home__inline-error {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-secondary, #64748b);
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.coiffeur-home__inline-error {
+  flex-direction: column;
+  gap: 10px;
+  color: #b91c1c;
+  text-align: center;
+
+  button {
+    min-height: 34px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 0 12px;
+    background: #ffffff;
+    color: #b91c1c;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 850;
+  }
+}
+
+@media (max-width: 430px) {
+  .coiffeur-home__hero-top {
+    align-items: center;
+  }
+
+  .coiffeur-home__title {
+    gap: 5px;
+    font-size: 1.16rem;
+  }
+
+  .coiffeur-home__salon-toggle {
+    min-height: 32px;
+    gap: 6px;
+    padding: 0 6px 0 9px;
+    font-size: 0.72rem;
+  }
+
+  .coiffeur-home__salon-switch {
+    width: 30px;
+    height: 18px;
+
+    span {
+      width: 14px;
+      height: 14px;
+    }
+
+    &--on span {
+      transform: translateX(12px);
+    }
+  }
+}
+
+@media (max-width: 380px) {
+  .coiffeur-home,
+  .coiffeur-home__pinned {
+    padding-inline: 12px;
+  }
+
+  .qr-card {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .qr-card__title {
+    font-size: 0.86rem;
+  }
+
+  .qr-card__action {
+    padding: 0 10px;
+    font-size: 0.7rem;
+  }
+
+  .queue-card__top {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .queue-card__status-tag {
+    margin-left: 60px;
+  }
+}
+
+@media (min-width: 720px) {
+  .coiffeur-home,
+  .coiffeur-home__pinned {
+    max-width: 760px;
+    margin: 0 auto;
+    padding-inline: 24px;
+  }
+}
+
+:host-context(body.dark-theme) {
+  .coiffeur-home,
+  .coiffeur-home__pinned {
+    background: var(--bg-primary, #10182d);
+  }
+
+  .queue-card,
+  .coiffeur-home__loading,
+  .coiffeur-home__inline-error {
+    border-color: #334155;
+    background: #1c2541;
+  }
+
+  .queue-card--current {
+    border-color: rgba(96, 165, 250, 0.42);
+    background: #172348;
+  }
+
+  .coiffeur-home__salon-toggle {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(22, 163, 74, 0.14);
+    color: #86efac;
+
+    &--closed {
+      border-color: rgba(248, 113, 113, 0.36);
+      background: rgba(220, 38, 38, 0.16);
+      color: #fca5a5;
+
+      .coiffeur-home__salon-switch {
+        background: #ef4444;
+      }
+    }
+  }
+
+  .coiffeur-home__title,
+  .coiffeur-home__user-name,
+  .coiffeur-home__section-title h2,
+  .queue-card__name {
+    color: #ffffff;
+  }
+
+  .coiffeur-home__subtitle,
+  .coiffeur-home__section-title span,
+  .queue-card__phone {
+    color: #cbd5e1;
+  }
+
+  .queue-card__avatar-img {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .queue-card__avatar-num {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #0f172a;
+
+    &--current {
+      background: var(--primary, #1e5af0);
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+  }
+
+  .qr-card {
+    border-color: rgba(96, 165, 250, 0.25);
+    background: linear-gradient(135deg, rgba(30, 90, 240, 0.16) 0%, #172348 60%);
+  }
+
+  .qr-card__title {
+    color: #ffffff;
+  }
+
+  .qr-card__skeleton-line,
+  .qr-card__skeleton-pill,
+  .qr-card__skeleton-qr {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 37%, #1e293b 63%);
+    background-size: 400% 100%;
+  }
+
+  .qr-card__action {
+    border-color: rgba(96, 165, 250, 0.35);
+    background: #1c2541;
+    color: #93c5fd;
+
+    &:hover {
+      background: var(--primary, #1e5af0);
+      color: #ffffff;
+    }
+  }
+
+  .qr-overlay__salon-name {
+    color: #0f172a; // Carte QR toujours claire : lisibilité maximale pour le scan
+  }
+}
