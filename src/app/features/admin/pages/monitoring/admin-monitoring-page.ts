@@ -254,7 +254,7 @@ interface Gauge {
                     formatNumber(s.storage.cloudinaryLiveResources ?? cld.resources)
                   }}</span>
                   <span class="mini-stats__label">
-                    Images{{ s.storage.cloudinaryLiveResources !== null ? ' · en direct' : '' }}
+                    Images{{ s.storage.cloudinaryLiveResources != null ? ' · en direct' : '' }}
                   </span>
                 </div>
                 <div class="mini-stats__item">
