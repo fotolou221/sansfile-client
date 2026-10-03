@@ -9,11 +9,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { SwUpdate } from '@angular/service-worker';
-import type {
-  UnrecoverableStateEvent,
-  VersionEvent,
-  VersionReadyEvent,
-} from '@angular/service-worker';
+import type { UnrecoverableStateEvent, VersionEvent } from '@angular/service-worker';
 import { filter, fromEvent, interval, merge, Subject, takeUntil } from 'rxjs';
 
 export interface BeforeInstallPromptEvent extends Event {
@@ -42,18 +38,24 @@ export class PwaService implements OnDestroy {
   readonly updateAvailable = signal<boolean>(false);
   readonly updateInProgress = signal<boolean>(false);
   readonly updateError = signal<string | null>(null);
+  /** L'utilisateur a choisi « Plus tard » : le popup revient au bout de UPDATE_REMIND_DELAY_MS. */
+  readonly updateDismissed = signal<boolean>(false);
+  readonly updateApplying = signal<boolean>(false);
 
   // ── Derived State ───────────────────────────────────────────
   readonly isInstalled = computed(() => this.isStandalone());
   readonly isIos = computed(() => this.platform() === 'ios');
   readonly isAndroid = computed(() => this.platform() === 'android');
   readonly isInstallable = computed(() => !this.isStandalone());
+  readonly showUpdatePrompt = computed(() => this.updateAvailable() && !this.updateDismissed());
 
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
   private standaloneMediaQueryList: MediaQueryList | null = null;
   private readonly destroy$ = new Subject<void>();
   private readonly UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
   private readonly UPDATE_CHECK_THROTTLE_MS = 10 * 1000;
+  private readonly UPDATE_REMIND_DELAY_MS = 30 * 60 * 1000;
+  private updateRemindTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly UPDATE_RELOAD_VERSION_KEY = 'sansfile_pwa_update_reload_version';
   private readonly UNRECOVERABLE_RELOAD_KEY = 'sansfile_pwa_unrecoverable_reload';
   private lastUpdateCheckAt = 0;
@@ -72,6 +74,7 @@ export class PwaService implements OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.updateRemindTimer) clearTimeout(this.updateRemindTimer);
     if (!this.isBrowser) return;
     this.cleanupListeners();
   }
@@ -233,12 +236,15 @@ export class PwaService implements OnDestroy {
         break;
 
       case 'VERSION_READY':
+        // Pas de rechargement imposé : l'utilisateur pourrait être en pleine action (ticket, appel…).
+        // Le popup de mise à jour le propose ; sans clic, la version s'applique à la prochaine ouverture.
+        console.info('[PWA] Nouvelle version prête :', event.latestVersion.hash);
         this.ngZone.run(() => {
           this.updateInProgress.set(false);
           this.updateAvailable.set(true);
+          this.updateDismissed.set(false);
           this.updateError.set(null);
         });
-        void this.activateAndReload(event);
         break;
 
       case 'VERSION_INSTALLATION_FAILED':
@@ -258,21 +264,30 @@ export class PwaService implements OnDestroy {
     }
   }
 
-  private async activateAndReload(event: VersionReadyEvent): Promise<void> {
+  /** Bouton « Mettre à jour » du popup : active la version prête puis recharge la page. */
+  async applyUpdate(): Promise<void> {
     if (!this.swUpdate?.isEnabled || this.isActivatingUpdate) return;
 
     this.isActivatingUpdate = true;
+    this.updateApplying.set(true);
     try {
-      console.info(
-        '[PWA] Activation automatique de la nouvelle version PWA:',
-        event.latestVersion.hash,
-      );
       await this.swUpdate.activateUpdate();
       window.location.reload();
     } catch (error) {
       this.isActivatingUpdate = false;
+      this.updateApplying.set(false);
       this.handleUpdateError(error, 'activate');
     }
+  }
+
+  /** Bouton « Plus tard » : le popup se ferme et revient si l'application reste ouverte longtemps. */
+  dismissUpdate(): void {
+    this.updateDismissed.set(true);
+    if (this.updateRemindTimer) clearTimeout(this.updateRemindTimer);
+    this.updateRemindTimer = setTimeout(
+      () => this.updateDismissed.set(false),
+      this.UPDATE_REMIND_DELAY_MS,
+    );
   }
 
   private reloadAfterUnrecoverableState(event: UnrecoverableStateEvent): void {
