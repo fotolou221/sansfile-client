@@ -1,17 +1,15 @@
 // Restaure le thème avant le premier affichage (évite un flash blanc en mode sombre).
 // Fichier externe : la politique de sécurité (CSP) interdit les scripts en ligne.
-(function() {
+(function () {
   try {
     var theme = localStorage.getItem('sansfile-app-theme');
     var isDark = false;
     if (theme === 'dark') {
       isDark = true;
-    } else if (theme === 'light') {
-      isDark = false;
-    } else {
-      // 'system' or default
+    } else if (theme === 'system') {
       isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
+    // Sinon ('light' ou aucun choix enregistré) : mode clair par défaut
     if (isDark) {
       document.documentElement.classList.add('dark-theme');
       document.documentElement.setAttribute('data-theme', 'dark');

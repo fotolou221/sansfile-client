@@ -104,6 +104,7 @@ export class ThemeService {
     } catch (e) {
       console.warn('[ThemeService] Unable to read theme from localStorage:', e);
     }
-    return 'system';
+    // Sans choix enregistré : mode clair (le thème du système reste disponible dans les réglages)
+    return 'light';
   }
 }
