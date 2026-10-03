@@ -86,6 +86,8 @@ export interface MonitoringSnapshot {
     localUploadsSinceStartup: number;
     lastCloudinaryUploadAt: string | null;
     lastCloudinaryFailureAt: string | null;
+    /** Nombre de fichiers sur Cloudinary à l'instant ; `cloudinary.resources` n'est recalculé qu'une fois par jour. */
+    cloudinaryLiveResources: number | null;
   };
   warnings: string[];
 }

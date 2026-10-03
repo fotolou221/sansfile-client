@@ -250,8 +250,12 @@ interface Gauge {
 
               <div class="mini-stats">
                 <div class="mini-stats__item">
-                  <span class="mini-stats__value">{{ formatNumber(cld.resources) }}</span>
-                  <span class="mini-stats__label">Images</span>
+                  <span class="mini-stats__value">{{
+                    formatNumber(s.storage.cloudinaryLiveResources ?? cld.resources)
+                  }}</span>
+                  <span class="mini-stats__label">
+                    Images{{ s.storage.cloudinaryLiveResources !== null ? ' · en direct' : '' }}
+                  </span>
                 </div>
                 <div class="mini-stats__item">
                   <span class="mini-stats__value">{{ formatBytes(cld.storageBytes) }}</span>

@@ -95,6 +95,7 @@ const HEALTHY: MonitoringSnapshot = {
     localUploadsSinceStartup: 2,
     lastCloudinaryUploadAt: null,
     lastCloudinaryFailureAt: null,
+    cloudinaryLiveResources: null,
   },
   warnings: [],
 };
@@ -157,10 +158,14 @@ describe('AdminMonitoringPage', () => {
         },
         cloudinaryFailuresSinceStartup: 1,
         lastCloudinaryFailureAt: '2026-10-01T09:00:00Z',
+        cloudinaryLiveResources: 7,
       },
     });
     fixture.detectChanges();
 
+    // Le compteur en direct remplace le chiffre du rapport quotidien (99, d'avant les suppressions)
+    expect(text()).toContain('Images · en direct');
+    expect(text()).not.toContain('99');
     expect(text()).toContain('1,2 %');
     expect(text()).toContain('0,3 / 25 crédits');
     expect(text()).toContain('forfait Free');
