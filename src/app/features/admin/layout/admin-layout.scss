@@ -202,10 +202,17 @@
   flex: 1;
   padding: 16px 12px;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 4px;
   -webkit-overflow-scrolling: touch;
+  // Barre de défilement masquée : le menu défile toujours (molette, doigt) sur les petits écrans
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .admin-sidebar__section-title {
