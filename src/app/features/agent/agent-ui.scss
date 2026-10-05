@@ -1,0 +1,375 @@
+// Styles communs de l'espace agent de terrain (mobile d'abord, thème clair / sombre par variables).
+// Inclus par chaque page de l'espace agent via « styleUrls ».
+
+.agent-page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-title {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--text-primary, #0f172a);
+}
+
+.agent-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--text-secondary, #64748b);
+}
+
+.agent-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary, #1e5af0);
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// ── Cartes ────────────────────────────────────────────────────
+.agent-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 18px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agent-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+}
+
+// ── Boutons ───────────────────────────────────────────────────
+.agent-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: var(--primary, #1e5af0);
+    color: #ffffff;
+
+    &:hover:not(:disabled) {
+      background: var(--primary-hover, #1746c0);
+    }
+  }
+
+  &--outline {
+    background: transparent;
+    border-color: var(--border-color, #e2e8f0);
+    color: var(--text-primary, #0f172a);
+
+    &:hover:not(:disabled) {
+      border-color: var(--primary, #1e5af0);
+      color: var(--primary, #1e5af0);
+    }
+  }
+
+  &--danger {
+    background: transparent;
+    border-color: var(--danger, #dc2626);
+    color: var(--danger, #dc2626);
+  }
+
+  &--block {
+    width: 100%;
+  }
+}
+
+// ── Formulaires ───────────────────────────────────────────────
+.agent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+  }
+
+  input,
+  textarea,
+  select {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 48px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--bg-page, #ffffff);
+    color: var(--text-primary, #0f172a);
+    font-family: inherit;
+    font-size: 1rem; // ≥ 16px : pas de zoom automatique sur iPhone
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary, #1e5af0);
+      box-shadow: 0 0 0 3px rgba(30, 90, 240, 0.15);
+    }
+
+    &::placeholder {
+      color: var(--text-muted, #94a3b8);
+    }
+  }
+
+  &--invalid input {
+    border-color: var(--danger, #dc2626);
+  }
+}
+
+.agent-field__hint {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-secondary, #64748b);
+}
+
+.agent-field__error {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--danger, #dc2626);
+}
+
+.agent-form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+
+  @media (min-width: 560px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+// ── Messages ──────────────────────────────────────────────────
+.agent-alert {
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  border: 1px solid transparent;
+
+  &--info {
+    background: rgba(30, 90, 240, 0.08);
+    border-color: rgba(30, 90, 240, 0.25);
+    color: var(--text-primary, #0f172a);
+  }
+
+  &--warning {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.35);
+    color: var(--text-primary, #0f172a);
+  }
+
+  &--danger {
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: var(--danger, #dc2626);
+  }
+
+  &--success {
+    background: rgba(22, 163, 74, 0.08);
+    border-color: rgba(22, 163, 74, 0.3);
+    color: var(--success, #16a34a);
+  }
+}
+
+// ── Statistiques ──────────────────────────────────────────────
+.agent-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.agent-stat {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 14px 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-stat__value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--primary, #1e5af0);
+}
+
+.agent-stat__label {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #64748b);
+}
+
+// ── Liste de salons ───────────────────────────────────────────
+.agent-salon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-salon-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--primary, #1e5af0);
+  }
+}
+
+.agent-salon-item__thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--primary-light, #eef2ff);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: var(--primary, #1e5af0);
+}
+
+.agent-salon-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  strong {
+    font-size: 0.9375rem;
+    color: var(--text-primary, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  span {
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #64748b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.agent-chip {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+
+  &--open {
+    background: rgba(22, 163, 74, 0.12);
+    color: var(--success, #16a34a);
+  }
+
+  &--closed {
+    background: rgba(100, 116, 139, 0.14);
+    color: var(--text-secondary, #64748b);
+  }
+}
+
+.agent-empty {
+  text-align: center;
+  padding: 28px 16px;
+  border: 1px dashed var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.agent-skeleton {
+  height: 76px;
+  border-radius: 16px;
+  background: linear-gradient(
+    90deg,
+    var(--border-subtle, #f1f5f9) 25%,
+    var(--border-color, #e2e8f0) 37%,
+    var(--border-subtle, #f1f5f9) 63%
+  );
+  background-size: 400% 100%;
+  animation: agent-shimmer 1.4s ease infinite;
+}
+
+@keyframes agent-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}

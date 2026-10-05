@@ -25,5 +25,7 @@ export interface Salon {
   readonly specialty?: string;
   readonly latitude?: number;
   readonly longitude?: number;
+  /** Agent de terrain qui a inscrit le salon (absent : créé par l'administration). */
+  readonly createdByAgentId?: number | null;
   readonly actions: readonly SalonAction[];
 }

@@ -187,7 +187,8 @@ export class InstallBanner {
     if (!this.pwa.showBanner()) return false;
     const url =
       this.currentUrl() || (typeof window !== 'undefined' ? window.location.pathname : '');
-    if (url.includes('/admin')) return false;
+    // Message destiné aux clients (alertes de ticket) : ni dans l'admin ni dans l'espace agent
+    if (url.includes('/admin') || url.startsWith('/agent')) return false;
     return true;
   });
 

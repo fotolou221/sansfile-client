@@ -218,6 +218,45 @@ import { PlatformSettingsService } from '../../../shared/services/platform-setti
             }
           </a>
 
+          <span class="admin-sidebar__section-title">TERRAIN</span>
+
+          <a
+            routerLink="/admin/agents"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            (click)="closeMobileSidebar()"
+            class="admin-nav-item"
+          >
+            <span class="admin-nav-item__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </span>
+            @if (!sidebarCollapsed()) {
+              <span class="admin-nav-item__label">Agents terrain</span>
+            }
+          </a>
+
+          <a
+            routerLink="/admin/agents/journal"
+            routerLinkActive="active"
+            (click)="closeMobileSidebar()"
+            class="admin-nav-item"
+          >
+            <span class="admin-nav-item__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="8" y1="13" x2="16" y2="13" />
+                <line x1="8" y1="17" x2="13" y2="17" />
+              </svg>
+            </span>
+            @if (!sidebarCollapsed()) {
+              <span class="admin-nav-item__label">Journal des agents</span>
+            }
+          </a>
+
           <span class="admin-sidebar__section-title">SYSTÈME</span>
 
           <a

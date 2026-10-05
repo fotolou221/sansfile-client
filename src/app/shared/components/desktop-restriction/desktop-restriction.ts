@@ -152,7 +152,10 @@ export class DesktopRestriction {
       url === '/vitrine' ||
       url === '/maintenance' ||
       url === '/admin' ||
-      url.startsWith('/admin/')
+      url.startsWith('/admin/') ||
+      // Espace agent de terrain : responsive (téléphone, tablette ou ordinateur)
+      url === '/agent' ||
+      url.startsWith('/agent/')
     ) {
       return false;
     }

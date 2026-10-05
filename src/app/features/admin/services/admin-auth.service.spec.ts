@@ -6,6 +6,14 @@ import { firstValueFrom } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { AdminAuthService } from './admin-auth.service';
 
+/** Jeton d'accès factice portant les rôles donnés (claim « auth »). */
+function fakeJwt(auth: string): string {
+  const encode = (o: object) => btoa(JSON.stringify(o)).replace(/=+$/, '');
+  return `${encode({ alg: 'HS512' })}.${encode({ sub: 'user', auth })}.signature`;
+}
+
+const ADMIN_TOKEN = fakeJwt('ROLE_ADMIN ROLE_USER');
+
 describe('AdminAuthService', () => {
   let service: AdminAuthService;
   let httpMock: HttpTestingController;
@@ -42,12 +50,12 @@ describe('AdminAuthService', () => {
       password: 'secret-password',
       rememberMe: true,
     });
-    req.flush({ id_token: 'access-token', refresh_token: 'refresh-token' });
+    req.flush({ id_token: ADMIN_TOKEN, refresh_token: 'refresh-token' });
 
     expect(await result).toEqual({ success: true });
     expect(service.isAuthenticated()).toBe(true);
     expect(service.currentAdmin()?.email).toBe('admin@sansfile.sn');
-    expect(localStorage.getItem('sansfile_jwt_token')).toBe('access-token');
+    expect(localStorage.getItem('sansfile_jwt_token')).toBe(ADMIN_TOKEN);
     expect(localStorage.getItem('sansfile_refresh_token')).toBe('refresh-token');
   });
 
@@ -65,11 +73,24 @@ describe('AdminAuthService', () => {
     expect(localStorage.getItem('sansfile_jwt_token')).toBeNull();
   });
 
+  it('should refuse a field agent account and keep no session', async () => {
+    const result = firstValueFrom(service.login('agent@terrain.sn', 'Terrain2026!'));
+    httpMock
+      .expectOne(`${API_CONFIG.baseUrl}/authenticate`)
+      .flush({ id_token: fakeJwt('ROLE_USER ROLE_AGENT'), refresh_token: 'refresh-token' });
+
+    const res = await result;
+    expect(res.success).toBe(false);
+    expect(res.message).toContain("pas accès à la console d'administration");
+    expect(service.isAuthenticated()).toBe(false);
+    expect(localStorage.getItem('sansfile_jwt_token')).toBeNull();
+  });
+
   it('should logout and clear the whole session', async () => {
     const result = firstValueFrom(service.login('admin@sansfile.sn', 'secret-password'));
     httpMock
       .expectOne(`${API_CONFIG.baseUrl}/authenticate`)
-      .flush({ id_token: 'access-token', refresh_token: 'refresh-token' });
+      .flush({ id_token: ADMIN_TOKEN, refresh_token: 'refresh-token' });
     await result;
     expect(service.isAuthenticated()).toBe(true);
 

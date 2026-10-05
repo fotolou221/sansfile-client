@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, computed, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -105,20 +105,22 @@ export class AdminPagination {
   @Output() pageChange = new EventEmitter<number>();
   @Output() pageSizeChange = new EventEmitter<number>();
 
-  protected readonly totalPages = computed(() => {
+  // Méthodes et non computed() : les @Input() ne sont pas des signaux, un computed() resterait figé
+  // sur les valeurs du premier affichage (liste encore vide → « 0 à 0 », « Suivant » bloqué).
+  protected totalPages(): number {
     return Math.max(1, Math.ceil(this.totalItems / (this.pageSize || 10)));
-  });
+  }
 
-  protected readonly startItem = computed(() => {
+  protected startItem(): number {
     if (this.totalItems === 0) return 0;
     return (this.currentPage - 1) * this.pageSize + 1;
-  });
+  }
 
-  protected readonly endItem = computed(() => {
+  protected endItem(): number {
     return Math.min(this.totalItems, this.currentPage * this.pageSize);
-  });
+  }
 
-  protected readonly visiblePages = computed(() => {
+  protected visiblePages(): number[] {
     const total = this.totalPages();
     const current = this.currentPage;
 
@@ -146,7 +148,7 @@ export class AdminPagination {
 
     pages.push(total);
     return pages;
-  });
+  }
 
   protected goToPage(page: number): void {
     if (page >= 1 && page <= this.totalPages() && page !== this.currentPage) {

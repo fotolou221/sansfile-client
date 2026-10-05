@@ -1201,21 +1201,25 @@ export class AdminDataService {
         tap((users) => {
           if (Array.isArray(users)) {
             this.clients.set(
-              users.map((u: any) => ({
-                id: u.id ? u.id.toString() : `u-${Date.now()}`,
-                name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.login || 'Utilisateur',
-                phone: u.phone || u.login || '+221 77 000 00 00',
-                district: u.district || 'Dakar',
-                avatarUrl: u.imageUrl,
-                role: u.authorities?.includes('ROLE_ADMIN')
-                  ? 'admin'
-                  : u.authorities?.includes('ROLE_COIFFEUR')
-                    ? 'coiffeur'
-                    : 'client',
-                ticketsCount: Number(u.ticketsCount) || 0,
-                relativesCount: Number(u.relativesCount) || 0,
-                createdAt: u.createdDate || new Date().toISOString(),
-              })),
+              users
+                // Agents de terrain : gérés sur la page « Agents terrain » (rôle et mot de passe à part)
+                .filter((u: any) => !u.authorities?.includes('ROLE_AGENT'))
+                .map((u: any) => ({
+                  id: u.id ? u.id.toString() : `u-${Date.now()}`,
+                  name:
+                    `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.login || 'Utilisateur',
+                  phone: u.phone || u.login || '+221 77 000 00 00',
+                  district: u.district || 'Dakar',
+                  avatarUrl: u.imageUrl,
+                  role: u.authorities?.includes('ROLE_ADMIN')
+                    ? 'admin'
+                    : u.authorities?.includes('ROLE_COIFFEUR')
+                      ? 'coiffeur'
+                      : 'client',
+                  ticketsCount: Number(u.ticketsCount) || 0,
+                  relativesCount: Number(u.relativesCount) || 0,
+                  createdAt: u.createdDate || new Date().toISOString(),
+                })),
             );
             this.syncTicketsCountsToClients();
             this.loadRelatives();

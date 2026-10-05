@@ -12,6 +12,7 @@ import {
 import { QrCode } from '../../../../shared/components/qr-code/qr-code';
 import { Salon } from '../../../../shared/models/salon';
 import { AdminConfirmService } from '../../services/admin-confirm.service';
+import { AdminAgentsService } from '../../services/admin-agents.service';
 import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
 
 @Component({
@@ -77,7 +78,7 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>Salon &amp; Coiffeur Propriétaire</th>
+                  <th class="salon-cell">Salon &amp; Coiffeur Propriétaire</th>
                   <th>Quartier &bull; Ville</th>
                   <th>Contact</th>
                   <th>Personnes en attente</th>
@@ -88,40 +89,62 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
               <tbody>
                 @for (salon of paginatedSalons(); track salon.id) {
                   <tr>
-                    <td>
+                    <td class="salon-cell">
                       <div class="admin-table__item-with-img">
-                        <img
-                          [src]="salon.avatarUrl || salon.coverUrl"
-                          [alt]="salon.name"
-                          class="admin-table__thumb"
-                        />
-                        <div>
-                          <strong>{{ salon.name }}</strong>
+                        @let thumb = salon.avatarUrl || salon.coverUrl;
+                        @if (thumb && !brokenThumbs().has(thumb)) {
+                          <img
+                            [src]="thumb"
+                            alt=""
+                            class="admin-table__thumb"
+                            (error)="markThumbBroken(thumb)"
+                          />
+                        } @else {
+                          <span
+                            class="admin-table__thumb admin-table__thumb--empty"
+                            aria-hidden="true"
+                          >
+                            {{ salon.name.charAt(0) }}
+                          </span>
+                        }
+                        <div class="salon-cell__info">
+                          <strong class="salon-cell__name">{{ salon.name }}</strong>
                           <span class="admin-table__subtext">
                             Propriétaire :
                             {{ salon.ownerName || salon.coiffeurName || 'Non renseigné' }}
                           </span>
+                          <span class="admin-table__subtext">
+                            Inscrit par
+                            @if (salon.createdByAgentId) {
+                              <span class="agent-origin">{{
+                                agents.agentName(salon.createdByAgentId)
+                              }}</span>
+                              (agent terrain)
+                            } @else {
+                              l'administration
+                            }
+                          </span>
                           @if (salon.website || salon.address) {
-                            <span class="admin-table__subtext" style="color: #2563eb;">
+                            <span class="admin-table__subtext salon-cell__address">
                               🌐 {{ salon.website || salon.address }}
                             </span>
                           }
                         </div>
                       </div>
                     </td>
-                    <td>{{ salon.district || salon.location }}</td>
-                    <td>{{ salon.phone || '+221 77 000 00 00' }}</td>
-                    <td>
+                    <td class="nowrap">{{ salon.district || salon.location }}</td>
+                    <td class="nowrap">{{ salon.phone || '+221 77 000 00 00' }}</td>
+                    <td class="nowrap">
                       <span class="admin-badge admin-badge--primary"
                         >{{ salon.peopleWaiting }} en file</span
                       >
                     </td>
-                    <td>
+                    <td class="nowrap">
                       <app-admin-badge [variant]="salon.status === 'open' ? 'success' : 'danger'">
                         {{ salon.status === 'open' ? 'Ouvert' : 'Fermé' }}
                       </app-admin-badge>
                     </td>
-                    <td style="text-align: right;">
+                    <td class="nowrap" style="text-align: right;">
                       <div class="admin-table__actions">
                         <button
                           type="button"
@@ -262,6 +285,14 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
                 <div class="admin-grid-card__meta">
                   <span>{{ salon.district || salon.location }}</span>
                   <span><strong>Propriétaire :</strong> {{ salon.ownerName || 'Coiffeur' }}</span>
+                  <span>
+                    <strong>Inscrit par :</strong>
+                    {{
+                      salon.createdByAgentId
+                        ? agents.agentName(salon.createdByAgentId) + ' (agent terrain)'
+                        : 'Administration'
+                    }}
+                  </span>
                   <span>{{ salon.phone || '+221 77 000 00 00' }}</span>
                   @if (salon.website || salon.address) {
                     <span style="color: #2563eb; font-weight: 500;"
@@ -857,6 +888,19 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
 export class AdminSalonsPage {
   protected readonly data = inject(AdminDataService);
   private readonly confirmService = inject(AdminConfirmService);
+  protected readonly agents = inject(AdminAgentsService);
+
+  constructor() {
+    // Noms des agents de terrain, pour « Inscrit par » (liste vide : rien ne s'affiche de plus)
+    this.agents.load().subscribe({ error: () => undefined });
+  }
+
+  /** Photos qui ne chargent pas : initiale du salon à la place de l'image cassée (une nouvelle photo est retentée). */
+  protected readonly brokenThumbs = signal<ReadonlySet<string>>(new Set());
+
+  protected markThumbBroken(url: string): void {
+    this.brokenThumbs.update((urls) => new Set(urls).add(url));
+  }
 
   protected searchQuery = '';
   protected statusFilter = 'all';

@@ -41,4 +41,22 @@ describe('AdminPagination', () => {
     component['goToPage'](2);
     expect(targetPage).toBe(2);
   });
+
+  it('should follow a list loaded after the first render', () => {
+    const fixture = TestBed.createComponent(AdminPagination);
+    fixture.componentRef.setInput('totalItems', 0);
+    fixture.componentRef.setInput('pageSize', 50);
+    fixture.detectChanges();
+
+    // Données chargées après coup (ex. journal des agents) : le décompte et « Suivant » suivent
+    fixture.componentRef.setInput('totalItems', 120);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent?.replace(/\s+/g, ' ')).toContain('Affichage 1 à 50 sur 120');
+    const next = Array.from(el.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Suivant'),
+    );
+    expect(next?.disabled).toBe(false);
+  });
 });

@@ -44,6 +44,20 @@ import { AdminCategoriesPage } from './features/admin/pages/categories/admin-cat
 import { AdminSettingsPage } from './features/admin/pages/settings/admin-settings-page';
 import { AdminMonitoringPage } from './features/admin/pages/monitoring/admin-monitoring-page';
 import { adminAuthGuard } from './features/admin/services/admin-auth.service';
+import { AdminAgentsPage } from './features/admin/pages/agents/admin-agents-page';
+import { AdminAgentActivityPage } from './features/admin/pages/agents/admin-agent-activity-page';
+import { AgentLoginPage } from './features/agent/pages/login/agent-login-page';
+import { AgentLayoutComponent } from './features/agent/layout/agent-layout';
+import { AgentHomePage } from './features/agent/pages/home/agent-home-page';
+import { AgentPasswordPage } from './features/agent/pages/password/agent-password-page';
+import { AgentSalonsPage } from './features/agent/pages/salons/agent-salons-page';
+import { AgentSalonFormPage } from './features/agent/pages/salon-form/agent-salon-form-page';
+import { AgentSalonDetailPage } from './features/agent/pages/salon-detail/agent-salon-detail-page';
+import { AgentProfilePage } from './features/agent/pages/profile/agent-profile-page';
+import {
+  agentAuthGuard,
+  agentPasswordChangedGuard,
+} from './features/agent/services/agent-auth.service';
 import { MaintenancePage } from './features/maintenance/maintenance-page';
 import { maintenanceGuard } from './core/guards/maintenance.guard';
 import {
@@ -120,6 +134,40 @@ const APP_ROUTES: Routes = [
   },
   { path: 'coiffeur/support', component: HelpSupportPage, canActivate: [coiffeurAuthGuard] },
 
+  // ── Espace agent de terrain (/agent) ──────────────────────
+  { path: 'agent/login', component: AgentLoginPage },
+  {
+    path: 'agent',
+    component: AgentLayoutComponent,
+    canActivate: [agentAuthGuard],
+    children: [
+      {
+        path: '',
+        pathMatch: 'full',
+        component: AgentHomePage,
+        canActivate: [agentPasswordChangedGuard],
+      },
+      { path: 'mot-de-passe', component: AgentPasswordPage },
+      { path: 'salons', component: AgentSalonsPage, canActivate: [agentPasswordChangedGuard] },
+      {
+        path: 'salons/nouveau',
+        component: AgentSalonFormPage,
+        canActivate: [agentPasswordChangedGuard],
+      },
+      {
+        path: 'salons/:id',
+        component: AgentSalonDetailPage,
+        canActivate: [agentPasswordChangedGuard],
+      },
+      {
+        path: 'salons/:id/modifier',
+        component: AgentSalonFormPage,
+        canActivate: [agentPasswordChangedGuard],
+      },
+      { path: 'profil', component: AgentProfilePage, canActivate: [agentPasswordChangedGuard] },
+    ],
+  },
+
   // ── Admin Web Routes (/admin) ─────────────────────────────
   { path: 'admin/login', component: AdminLoginPage },
   {
@@ -136,6 +184,8 @@ const APP_ROUTES: Routes = [
       { path: 'categories', component: AdminCategoriesPage },
       { path: 'commandes', component: AdminCommandesPage },
       { path: 'utilisateurs', component: AdminUsersPage },
+      { path: 'agents', component: AdminAgentsPage },
+      { path: 'agents/journal', component: AdminAgentActivityPage },
       { path: 'supervision', component: AdminMonitoringPage },
       { path: 'settings', component: AdminSettingsPage },
     ],

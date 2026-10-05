@@ -5,6 +5,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, tap, map, catchError } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { HttpErrorMessageService } from '../../../shared/services/http-error-message.service';
+import { hasAnyAuthority } from '../../../core/auth/jwt-claims';
 
 export interface AdminUser {
   id: string;
@@ -15,6 +16,8 @@ export interface AdminUser {
 }
 
 const ADMIN_STORAGE_KEY = 'sansfile_admin_session';
+const NOT_ADMIN_MESSAGE =
+  "Ce compte n'a pas accès à la console d'administration. Agents de terrain : connectez-vous depuis l'espace agent (/agent).";
 
 @Injectable({
   providedIn: 'root',
@@ -51,6 +54,13 @@ export class AdminAuthService {
         rememberMe: true,
       })
       .pipe(
+        map((res) => {
+          // Le mot de passe ouvre aussi l'espace des agents de terrain : la console reste réservée aux admins
+          if (res?.id_token && !hasAnyAuthority(res.id_token, 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')) {
+            throw new Error(NOT_ADMIN_MESSAGE);
+          }
+          return res;
+        }),
         tap((res) => {
           if (res && res.id_token) {
             if (this.isBrowser) {
@@ -77,12 +87,14 @@ export class AdminAuthService {
         catchError((err) => {
           console.warn('[AdminAuthService] Login failed:', err);
           const message =
-            err instanceof HttpErrorResponse && err.status === 401
-              ? 'Identifiants invalides. Verifiez votre adresse email et mot de passe.'
-              : this.errorMessages.message(
-                  err,
-                  'Impossible de se connecter au tableau de bord. Verifiez votre connexion.',
-                );
+            err instanceof Error && err.message === NOT_ADMIN_MESSAGE
+              ? NOT_ADMIN_MESSAGE
+              : err instanceof HttpErrorResponse && err.status === 401
+                ? 'Identifiants invalides. Verifiez votre adresse email et mot de passe.'
+                : this.errorMessages.message(
+                    err,
+                    'Impossible de se connecter au tableau de bord. Verifiez votre connexion.',
+                  );
           return of({
             success: false,
             message,
