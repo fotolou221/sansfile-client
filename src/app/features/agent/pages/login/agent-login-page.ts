@@ -58,6 +58,7 @@ import { AgentAuthService } from '../../services/agent-auth.service';
                 [type]="showPassword() ? 'text' : 'password'"
                 autocomplete="current-password"
                 [(ngModel)]="password"
+                placeholder="Votre mot de passe"
                 required
               />
               <button

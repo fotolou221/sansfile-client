@@ -52,6 +52,11 @@ import { AgentAuthService } from '../../services/agent-auth.service';
             [type]="show() ? 'text' : 'password'"
             autocomplete="current-password"
             [(ngModel)]="current"
+            [placeholder]="
+              auth.mustChangePassword()
+                ? 'Mot de passe reçu de l’administration'
+                : 'Votre mot de passe actuel'
+            "
             required
           />
         </div>
@@ -65,6 +70,7 @@ import { AgentAuthService } from '../../services/agent-auth.service';
             autocomplete="new-password"
             [ngModel]="next()"
             (ngModelChange)="next.set($event)"
+            placeholder="8 caractères min., lettres et chiffres"
             required
           />
           <ul class="rules" aria-live="polite">
@@ -83,6 +89,7 @@ import { AgentAuthService } from '../../services/agent-auth.service';
             autocomplete="new-password"
             [ngModel]="confirm()"
             (ngModelChange)="confirm.set($event)"
+            placeholder="Retapez le nouveau mot de passe"
             required
           />
           @if (confirm() && !confirmMatches()) {

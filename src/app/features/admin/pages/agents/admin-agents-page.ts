@@ -211,6 +211,7 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
                 name="firstName"
                 [(ngModel)]="form.firstName"
                 maxlength="50"
+                placeholder="Ex : Awa"
                 required
               />
             </div>
@@ -221,6 +222,7 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
                 name="lastName"
                 [(ngModel)]="form.lastName"
                 maxlength="50"
+                placeholder="Ex : Ndiaye"
                 required
               />
             </div>
