@@ -1,10 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { ClientLayout } from '../../../shared/components/client-layout/client-layout';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { GeoLocationModal } from '../../../shared/components/geolocation-modal/geolocation-modal';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { CartService } from '../../../shared/services/cart.service';
+import { LocalityService } from '../../../shared/services/locality.service';
 
 @Component({
   selector: 'app-cart-page',
@@ -57,6 +58,11 @@ import { CartService } from '../../../shared/services/cart.service';
                   <span class="cart-item-card__price"
                     >{{ formatPrice(item.product.price) }} FCFA</span
                   >
+                  @if (isUnavailable(item.product.id)) {
+                    <span class="cart-item-card__unavailable">
+                      Indisponible à {{ localityService.shopLocalityName() || 'votre localité' }}
+                    </span>
+                  }
 
                   <div class="cart-item-card__stepper">
                     <button
@@ -114,6 +120,16 @@ import { CartService } from '../../../shared/services/cart.service';
       <!-- Fixed Footer Slot: Summary & Action Button -->
       @if (cartService.cartItems().length > 0) {
         <div slot="footer" class="cart-page__fixed-footer">
+          @if (cartService.unavailableItems().length > 0) {
+            <div class="cart-page__alert" role="alert">
+              <span>
+                {{ cartService.unavailableItems().length }} article(s) ne sont pas livrables à
+                {{ localityService.shopLocalityName() || 'votre localité' }}.
+              </span>
+              <button type="button" (click)="removeUnavailable()">Les retirer</button>
+            </div>
+          }
+
           <!-- Summary Breakdown -->
           <div class="cart-summary">
             <div class="cart-summary__row">
@@ -122,7 +138,7 @@ import { CartService } from '../../../shared/services/cart.service';
             </div>
 
             <div class="cart-summary__row">
-              <span>Livraison</span>
+              <span>Livraison à {{ localityService.shopLocalityName() || 'votre localité' }}</span>
               <strong>{{ formatPrice(cartService.deliveryFee()) }} FCFA</strong>
             </div>
 
@@ -146,7 +162,12 @@ import { CartService } from '../../../shared/services/cart.service';
           </div>
 
           <!-- Checkout Continue Button -->
-          <button type="button" class="cart-page__continue-btn" (click)="openGeoModal()">
+          <button
+            type="button"
+            class="cart-page__continue-btn"
+            [disabled]="!canCheckout()"
+            (click)="openGeoModal()"
+          >
             Continuer la commande
           </button>
         </div>
@@ -165,8 +186,30 @@ import { CartService } from '../../../shared/services/cart.service';
 export class CartPage {
   private readonly router = inject(Router);
   protected readonly cartService = inject(CartService);
+  protected readonly localityService = inject(LocalityService);
 
   protected readonly showGeoModal = signal(false);
+
+  /** Commande possible : localité avec boutique ouverte, aucun article indisponible chez son partenaire. */
+  protected readonly canCheckout = computed(
+    () =>
+      this.localityService.shopLocality()?.shopAvailable === true &&
+      this.cartService.unavailableItems().length === 0,
+  );
+
+  constructor() {
+    void this.localityService.loadLocalities();
+  }
+
+  protected isUnavailable(productId: string): boolean {
+    return this.cartService.unavailableItems().some((item) => item.product.id === productId);
+  }
+
+  protected removeUnavailable(): void {
+    for (const item of this.cartService.unavailableItems()) {
+      this.cartService.removeFromCart(item.product.id);
+    }
+  }
 
   protected formatPrice(val: number): string {
     return val.toLocaleString('fr-FR');

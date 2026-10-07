@@ -5,8 +5,11 @@ import { ClientLayout } from '../../../shared/components/client-layout/client-la
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { CartService } from '../../../shared/services/cart.service';
 import { OrderService } from '../../../shared/services/order.service';
+import { LocalityService } from '../../../shared/services/locality.service';
+import { HttpErrorMessageService } from '../../../shared/services/http-error-message.service';
 import { AuthSessionService } from '../../auth/auth-session.service';
 import { CartItem } from '../../../shared/models/product';
+import { OrderQuote } from '../../../shared/models/order';
 
 @Component({
   selector: 'app-order-confirmation-page',
@@ -66,14 +69,50 @@ import { CartItem } from '../../../shared/models/product';
 
           <div class="order-confirm-page__divider"></div>
 
-          <div class="order-confirm-page__total-row">
-            <span>TOTAL À PAYER</span>
-            <strong>{{ formatPrice(cartService.totalPrice()) }} FCFA</strong>
+          <div class="order-confirm-page__line">
+            <span>Sous-total</span>
+            <span>{{ formatPrice(quote()?.subtotal ?? cartService.subtotal()) }} FCFA</span>
           </div>
+          <div class="order-confirm-page__line">
+            <span
+              >Livraison à {{ quote()?.localityName || localityService.shopLocalityName() }}</span
+            >
+            <span>{{ formatPrice(quote()?.deliveryFee ?? cartService.deliveryFee()) }} FCFA</span>
+          </div>
+
+          <div class="order-confirm-page__total-row">
+            <span>TOTAL</span>
+            <strong>{{ formatPrice(quote()?.totalPrice ?? cartService.totalPrice()) }} FCFA</strong>
+          </div>
+        </section>
+
+        <!-- Répartition du paiement : acompte avant confirmation, le reste au livreur -->
+        <section class="order-confirm-page__split" aria-label="Paiement">
+          @if (quoteLoading()) {
+            <p class="order-confirm-page__split-note">Calcul du paiement…</p>
+          } @else if (quote(); as q) {
+            <div class="order-confirm-page__split-row order-confirm-page__split-row--now">
+              <span>À envoyer maintenant<small>Wave / Orange Money</small></span>
+              <strong>{{ formatPrice(q.upfrontAmount) }} FCFA</strong>
+            </div>
+            <div class="order-confirm-page__split-row">
+              <span>À payer au livreur<small>à la réception</small></span>
+              <strong>{{ formatPrice(q.partnerAmount) }} FCFA</strong>
+            </div>
+            <p class="order-confirm-page__split-note">
+              SansFile vous contacte sur WhatsApp pour l'envoi du premier montant. Votre commande
+              part dès sa réception.
+            </p>
+          }
         </section>
 
         @if (errorMsg()) {
           <p class="order-confirm-page__error">{{ errorMsg() }}</p>
+          @if (backToCart()) {
+            <button type="button" class="order-confirm-page__back-cart" (click)="goToCart()">
+              Retour au panier
+            </button>
+          }
         }
       </div>
 
@@ -81,7 +120,7 @@ import { CartItem } from '../../../shared/models/product';
         <button
           type="button"
           class="order-confirm-page__validate-btn"
-          [disabled]="submitting() || orderValidated()"
+          [disabled]="submitting() || orderValidated() || quoteLoading() || backToCart()"
           (click)="validateOrder()"
         >
           @if (submitting()) {
@@ -124,6 +163,9 @@ import { CartItem } from '../../../shared/models/product';
             <h3 class="booking-modal__success-title">Commande validée !</h3>
             <p class="booking-modal__success-desc">
               Votre commande {{ validatedOrderNumber() }} a été enregistrée avec succès.
+              @if (quote(); as q) {
+                <br />Envoyez {{ formatPrice(q.upfrontAmount) }} FCFA à SansFile pour la confirmer.
+              }
             </p>
             <div class="booking-modal__success-progress">
               <div class="booking-modal__success-bar"></div>
@@ -139,13 +181,19 @@ export class OrderConfirmationPage implements OnInit {
   private readonly router = inject(Router);
   protected readonly cartService = inject(CartService);
   protected readonly orderService = inject(OrderService);
+  protected readonly localityService = inject(LocalityService);
   private readonly auth = inject(AuthSessionService);
+  private readonly errorMessages = inject(HttpErrorMessageService);
 
   protected readonly items = signal<readonly CartItem[]>([]);
   protected readonly submitting = signal(false);
   protected readonly orderValidated = signal(false);
   protected readonly validatedOrderNumber = signal('');
   protected readonly errorMsg = signal<string | null>(null);
+  protected readonly quote = signal<OrderQuote | null>(null);
+  protected readonly quoteLoading = signal(true);
+  /** Panier à corriger (article indisponible, boutique fermée) : retour au panier proposé. */
+  protected readonly backToCart = signal(false);
 
   ngOnInit(): void {
     const cartItems = this.cartService.cartItems();
@@ -154,6 +202,7 @@ export class OrderConfirmationPage implements OnInit {
       return;
     }
     this.items.set([...cartItems]);
+    this.loadQuote();
 
     // Active la géolocalisation pour enregistrer automatiquement la position du client
     if (
@@ -178,6 +227,52 @@ export class OrderConfirmationPage implements OnInit {
     return val.toLocaleString('fr-FR');
   }
 
+  protected goToCart(): void {
+    void this.router.navigate(['/client/boutique/panier']);
+  }
+
+  /** Acompte et part du livreur calculés par le serveur (prix de gros jamais connus du client). */
+  private loadQuote(): void {
+    this.quoteLoading.set(true);
+    this.orderService.quote(this.items()).subscribe({
+      next: (q) => {
+        this.quoteLoading.set(false);
+        this.quote.set(q);
+        if (!q.shopAvailable) {
+          this.backToCart.set(true);
+          this.errorMsg.set(`La boutique n'est pas encore disponible à ${q.localityName}.`);
+        } else if (q.unavailableProductIds.length > 0) {
+          const titles = this.items()
+            .filter((i) => q.unavailableProductIds.includes(Number(i.product.id)))
+            .map((i) => i.product.title)
+            .join(', ');
+          this.backToCart.set(true);
+          this.errorMsg.set(
+            `${titles} : pas disponible à ${q.localityName} pour le moment. Retirez-le du panier pour continuer.`,
+          );
+        } else if (q.stockShortages?.length) {
+          const details = q.stockShortages
+            .map((s) => {
+              const item = this.items().find((i) => Number(i.product.id) === s.productId);
+              return `${s.remaining} « ${item?.product.title ?? 'article'} »`;
+            })
+            .join(', ');
+          this.backToCart.set(true);
+          this.errorMsg.set(
+            `Il ne reste que ${details} à ${q.localityName}. Réduisez la quantité dans le panier pour continuer.`,
+          );
+        }
+      },
+      error: (err) => {
+        this.quoteLoading.set(false);
+        this.backToCart.set(true);
+        this.errorMsg.set(
+          this.errorMessages.message(err, 'Impossible de calculer le paiement. Réessayez.'),
+        );
+      },
+    });
+  }
+
   private buildDelivery() {
     const user = this.auth.currentUser();
     const coords = this.cartService.deliveryCoords();
@@ -186,10 +281,12 @@ export class OrderConfirmationPage implements OnInit {
       : undefined;
     return {
       address: undefined,
-      district: 'Dakar',
+      district: this.quote()?.localityName ?? this.localityService.shopLocalityName() ?? undefined,
       customerName: user && user.id !== 'guest' ? user.name : undefined,
       customerPhone: user && user.id !== 'guest' ? user.phone : undefined,
       notes,
+      latitude: coords?.lat ?? null,
+      longitude: coords?.lng ?? null,
     };
   }
 
@@ -237,15 +334,22 @@ export class OrderConfirmationPage implements OnInit {
           this.validatedOrderNumber.set(order.orderNumber ? `(${order.orderNumber})` : '');
           this.orderValidated.set(true);
 
-          // Disparaît après 2s avec redirection vers la liste des commandes
+          // Disparaît après quelques secondes avec redirection vers le détail de la commande
           setTimeout(() => {
-            this.router.navigate(['/client/boutique/commandes']);
-          }, 2000);
+            this.router.navigate(['/client/boutique/commandes', order.id]);
+          }, 3000);
         },
-        error: () => {
+        error: (err) => {
           this.submitting.set(false);
+          const code = err?.error?.code;
+          if (code === 'product-unavailable' || code === 'shop-unavailable') {
+            this.backToCart.set(true);
+          }
           this.errorMsg.set(
-            "Impossible d'enregistrer la commande. Vérifiez votre connexion et réessayez.",
+            this.errorMessages.message(
+              err,
+              "Impossible d'enregistrer la commande. Vérifiez votre connexion et réessayez.",
+            ),
           );
         },
       });

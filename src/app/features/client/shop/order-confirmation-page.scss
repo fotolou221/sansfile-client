@@ -204,7 +204,7 @@
   margin: 12px 4px 0;
   padding: 10px 14px;
   border-radius: 10px;
-  background: #fef2f2;
+  background: rgba(220, 38, 38, 0.08);
   color: #dc2626;
   font-size: 0.85rem;
   font-weight: 600;
@@ -336,4 +336,82 @@
   to {
     width: 0%;
   }
+}
+
+// ── Montants : sous-total, livraison de la localité ──────────
+.order-confirm-page__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.85rem;
+
+  span:last-child {
+    color: var(--text-primary, #0f172a);
+    font-weight: 700;
+  }
+}
+
+// ── Paiement : acompte maintenant, le reste au livreur ───────
+.order-confirm-page__split {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  background: var(--bg-card, #ffffff);
+}
+
+.order-confirm-page__split-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  span {
+    display: flex;
+    flex-direction: column;
+    color: var(--text-primary, #0f172a);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  small {
+    color: var(--text-secondary, #64748b);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  strong {
+    color: var(--text-primary, #0f172a);
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  &--now strong {
+    color: var(--primary, #1e5af0);
+    font-size: 1.1rem;
+  }
+}
+
+.order-confirm-page__split-note {
+  margin: 0;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.order-confirm-page__back-cart {
+  margin: 10px 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--primary, #1e5af0);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
 }

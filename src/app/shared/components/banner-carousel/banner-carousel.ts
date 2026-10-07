@@ -7,15 +7,6 @@ import { Component, Input, signal } from '@angular/core';
       <div class="banner-carousel__slide">
         <img [src]="currentImage" [alt]="altText" class="banner-carousel__image" />
         <div class="banner-carousel__overlay"></div>
-
-        <!-- Central Barber & Salon Badge Overlay -->
-        <div class="banner-carousel__badge" aria-hidden="true">
-          <div class="banner-carousel__badge-inner">
-            <span class="banner-carousel__badge-top">BARBER</span>
-            <span class="banner-carousel__badge-amp">&amp;</span>
-            <span class="banner-carousel__badge-bottom">SALON</span>
-          </div>
-        </div>
       </div>
 
       <!-- Carousel Pagination Dots -->

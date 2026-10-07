@@ -99,6 +99,11 @@ type OrderTab = 'active' | 'history';
                     <strong class="order-card__total-val"
                       >{{ formatPrice(order.totalPrice) }} FCFA</strong
                     >
+                    @if (order.status === 'en_attente' && order.upfrontAmount !== undefined) {
+                      <span class="order-card__total-label">
+                        À envoyer : {{ formatPrice(order.upfrontAmount) }} FCFA
+                      </span>
+                    }
                   </div>
 
                   <div class="order-card__actions">

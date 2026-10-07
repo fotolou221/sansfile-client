@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AgentDashboard } from '../../models/agent';
 import { AgentAuthService } from '../../services/agent-auth.service';
@@ -19,8 +19,21 @@ import { AgentSalonItem } from '../../components/agent-salon-item';
 
       <div>
         <h1 class="agent-title">Bonjour {{ auth.profile()?.firstName }} 👋</h1>
-        <p class="agent-subtitle">Inscrivez les salons que vous rencontrez sur le terrain.</p>
+        <p class="agent-subtitle">
+          @if (auth.hasLocality()) {
+            Vos localités : <strong>{{ localityNames() }}</strong>
+          } @else {
+            Inscrivez les salons que vous rencontrez sur le terrain.
+          }
+        </p>
       </div>
+
+      @if (!auth.hasLocality()) {
+        <div class="agent-alert agent-alert--danger" role="alert">
+          Vous n'êtes affecté à aucune localité : vous ne pouvez pas inscrire ni modifier de salon
+          pour le moment. Contactez l'administration.
+        </div>
+      }
 
       <div class="agent-stats">
         <div class="agent-stat">
@@ -37,13 +50,15 @@ import { AgentSalonItem } from '../../components/agent-salon-item';
         </div>
       </div>
 
-      <a routerLink="/agent/salons/nouveau" class="agent-btn agent-btn--primary agent-btn--block">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        Inscrire un nouveau salon
-      </a>
+      @if (auth.hasLocality()) {
+        <a routerLink="/agent/salons/nouveau" class="agent-btn agent-btn--primary agent-btn--block">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Inscrire un nouveau salon
+        </a>
+      }
 
       <section class="agent-card">
         <div class="section-head">
@@ -97,8 +112,16 @@ export class AgentHomePage implements OnInit {
   protected readonly dashboard = signal<AgentDashboard | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly passwordChanged = signal(false);
+  protected readonly localityNames = computed(() =>
+    this.auth
+      .localities()
+      .map((l) => l.name)
+      .join(', '),
+  );
 
   ngOnInit(): void {
+    // Localités à jour : l'admin a pu les modifier depuis la dernière ouverture
+    this.auth.refreshProfile().subscribe();
     this.passwordChanged.set(this.route.snapshot.queryParamMap.get('motdepasse') === 'ok');
     this.data.dashboard().subscribe({
       next: (d) => this.dashboard.set(d),

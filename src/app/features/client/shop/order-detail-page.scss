@@ -153,3 +153,22 @@
   font-size: 1.35rem;
   font-weight: 900;
 }
+
+// Paiement réparti : acompte à SansFile, le reste au livreur du partenaire
+.order-detail-page__split {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-color, #e2e8f0);
+
+  a {
+    color: var(--primary, #1e5af0);
+    text-decoration: none;
+  }
+}
+
+.order-detail-page__split strong {
+  white-space: nowrap;
+}

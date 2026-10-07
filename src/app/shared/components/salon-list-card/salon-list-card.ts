@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { Salon } from '../../models/salon';
 import { StatusBadge } from '../status-badge/status-badge';
 import { FavoritesService } from '../../services/favorites.service';
+import { SalonService } from '../../services/salon.service';
 
 @Component({
   selector: 'app-salon-list-card',
@@ -63,7 +64,9 @@ import { FavoritesService } from '../../services/favorites.service';
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
           </svg>
-          <span class="salon-list-card__location-text">{{ salon.location }}</span>
+          <span class="salon-list-card__location-text">{{
+            salonService.localityNameOf(salon) || salon.location
+          }}</span>
         </span>
         @if (salon.ownerName || salon.coiffeurName || salon.name) {
           <span class="salon-list-card__owner">
@@ -97,6 +100,7 @@ import { FavoritesService } from '../../services/favorites.service';
 })
 export class SalonListCard {
   private readonly favoritesService = inject(FavoritesService);
+  protected readonly salonService = inject(SalonService);
 
   readonly defaultAvatar = 'images/salons/king-barber-avatar.png';
 

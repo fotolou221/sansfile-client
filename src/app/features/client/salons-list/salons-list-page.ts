@@ -9,7 +9,13 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { StatusBadge } from '../../../shared/components/status-badge/status-badge';
 import { SalonService } from '../../../shared/services/salon.service';
 import { FavoritesService } from '../../../shared/services/favorites.service';
+import { LocalityService } from '../../../shared/services/locality.service';
+import { LocalityPickerSheet } from '../../../shared/components/locality-picker/locality-picker-sheet';
 import { Salon } from '../../../shared/models/salon';
+
+function normalize(value: string): string {
+  return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+}
 
 @Component({
   selector: 'app-salons-list-page',
@@ -22,6 +28,7 @@ import { Salon } from '../../../shared/models/salon';
     EmptyStateComponent,
     ErrorStateComponent,
     StatusBadge,
+    LocalityPickerSheet,
   ],
   template: `
     <app-client-layout activeNav="home">
@@ -33,8 +40,30 @@ import { Salon } from '../../../shared/models/salon';
       <div class="salons-page">
         <!-- Intro Hero Section -->
         <section class="salons-page__hero">
-          <h1 class="salons-page__hero-title">Nos Salons</h1>
-          <p class="salons-page__hero-subtitle">Prenez votre ticket en 1 clic.</p>
+          <h1 class="salons-page__hero-title">
+            {{
+              localityService.viewingAll()
+                ? 'Tous nos salons'
+                : 'Salons à ' + localityService.viewedLabel()
+            }}
+          </h1>
+          <button
+            type="button"
+            class="salons-page__locality-btn"
+            (click)="localityService.openPicker()"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <span>Changer de localité</span>
+          </button>
         </section>
 
         <!-- Search Bar -->
@@ -42,7 +71,7 @@ import { Salon } from '../../../shared/models/salon';
           <app-search-bar
             [value]="searchQuery()"
             (valueChange)="onSearchChange($event)"
-            placeholder="Rechercher un salon, un quartier..."
+            placeholder="Rechercher un salon (toutes localités)…"
           />
         </section>
 
@@ -57,13 +86,29 @@ import { Salon } from '../../../shared/models/salon';
           />
         } @else {
           @if (filteredSalons().length === 0) {
-            <app-empty-state
-              icon="search"
-              title="Aucun salon trouvé"
-              description="Essayez une autre recherche ou réinitialisez vos filtres pour découvrir nos salons partenaires."
-              actionLabel="Effacer la recherche"
-              (action)="clearSearch()"
-            />
+            @if (searchQuery()) {
+              <app-empty-state
+                icon="search"
+                title="Aucun salon trouvé"
+                description="Essayez une autre recherche pour découvrir nos salons partenaires."
+                actionLabel="Effacer la recherche"
+                (action)="clearSearch()"
+              />
+            } @else if (!localityService.viewingAll()) {
+              <app-empty-state
+                icon="search"
+                [title]="'Pas encore de salon à ' + localityService.viewedLabel()"
+                description="Les salons de cette localité arrivent bientôt. En attendant, découvrez ceux des autres localités."
+                actionLabel="Voir toutes les localités"
+                (action)="localityService.setViewed('all')"
+              />
+            } @else {
+              <app-empty-state
+                icon="search"
+                title="Aucun salon pour le moment"
+                description="Les salons partenaires de SansFile apparaîtront dès leur ouverture."
+              />
+            }
           } @else {
             <!-- Section 1: Salons recommandés (Horizontaux) -->
             @if (featuredSalons().length > 0) {
@@ -132,7 +177,7 @@ import { Salon } from '../../../shared/models/salon';
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                                 <circle cx="12" cy="10" r="3" />
                               </svg>
-                              <span>{{ salon.district || salon.location }}</span>
+                              <span>{{ locationLabel(salon) }}</span>
                             </span>
                           </div>
                         </div>
@@ -236,7 +281,7 @@ import { Salon } from '../../../shared/models/salon';
                           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                           <circle cx="12" cy="10" r="3" />
                         </svg>
-                        <span>{{ salon.district || salon.location }}</span>
+                        <span>{{ locationLabel(salon) }}</span>
                       </span>
 
                       <div class="grid-card__queue-pill">
@@ -257,11 +302,14 @@ import { Salon } from '../../../shared/models/salon';
         }
       </div>
     </app-client-layout>
+
+    <app-locality-picker-sheet />
   `,
   styleUrl: './salons-list-page.scss',
 })
 export class SalonsListPage {
   protected readonly salonService = inject(SalonService);
+  protected readonly localityService = inject(LocalityService);
   private readonly favoritesService = inject(FavoritesService);
 
   readonly defaultAvatar = 'images/salons/king-barber-avatar.png';
@@ -269,17 +317,31 @@ export class SalonsListPage {
 
   protected readonly searchQuery = signal<string>('');
 
+  /** Salons de la localité regardée ; une recherche porte sur toutes les localités. */
   protected readonly filteredSalons = computed(() => {
-    const q = this.searchQuery().toLowerCase().trim();
+    const q = normalize(this.searchQuery());
     const list = this.salonService.salons();
-    if (!q) return list;
-    return list.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.location.toLowerCase().includes(q) ||
-        s.district.toLowerCase().includes(q),
+    if (!q) return this.salonService.inViewedLocality(list);
+    return list.filter((s) =>
+      [s.name, s.location, s.district, this.salonService.localityNameOf(s)].some((v) =>
+        normalize(v ?? '').includes(q),
+      ),
     );
   });
+
+  constructor() {
+    void this.localityService.loadLocalities();
+  }
+
+  /** « Rufisque · Médina » : localité du salon, puis son quartier. */
+  protected locationLabel(salon: Salon): string {
+    const locality = this.salonService.localityNameOf(salon);
+    const district = salon.district || salon.location;
+    if (locality && district && normalize(locality) !== normalize(district)) {
+      return `${locality} · ${district}`;
+    }
+    return locality || district || '';
+  }
 
   // Featured salons: open first or top ranked
   protected readonly featuredSalons = computed(() => {

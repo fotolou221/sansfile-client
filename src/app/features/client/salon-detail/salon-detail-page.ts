@@ -41,7 +41,7 @@ import { FavoritesService } from '../../../shared/services/favorites.service';
         </div>
       } @else {
         <div class="salon-detail">
-          <!-- Top Carousel Banner with Logo Overlay -->
+          <!-- Top Carousel Banner -->
           <app-banner-carousel
             [images]="salon.galleryImages || [salon.coverUrl]"
             [altText]="salon.name"
@@ -67,7 +67,7 @@ import { FavoritesService } from '../../../shared/services/favorites.service';
                       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                       <circle cx="12" cy="10" r="3" />
                     </svg>
-                    <span>{{ salon.location }}</span>
+                    <span>{{ salonLocation(salon) }}</span>
                   </p>
                   @if (salon.ownerName || salon.coiffeurName || salon.name) {
                     <div class="salon-detail__owner-tag">
@@ -203,6 +203,16 @@ export class SalonDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   protected readonly salonService = inject(SalonService);
   private readonly favoritesService = inject(FavoritesService);
+
+  /** « Rufisque · Médina » : localité du salon, puis son quartier (ou sa ville). */
+  protected salonLocation(salon: Salon): string {
+    const locality = this.salonService.localityNameOf(salon);
+    const place = salon.district || salon.location;
+    if (locality && place && locality.toLowerCase() !== place.toLowerCase()) {
+      return `${locality} · ${place}`;
+    }
+    return locality || place || '';
+  }
 
   protected readonly salonId = signal<string | null>(null);
   protected readonly loadedSalon = signal<Salon | null>(null);

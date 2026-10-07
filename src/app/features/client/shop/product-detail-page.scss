@@ -260,3 +260,17 @@
     transform: translateY(0);
   }
 }
+
+// Produit absent de chez le partenaire de la localité de livraison
+.product-detail-page__stock-status--out {
+  color: var(--danger, #dc2626);
+
+  .product-detail-page__stock-dot {
+    background: var(--danger, #dc2626);
+  }
+}
+
+.product-detail-page__add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

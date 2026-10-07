@@ -6,6 +6,9 @@ import { AdminModal } from '../../components/admin-modal/admin-modal';
 import { AdminPagination } from '../../components/admin-pagination/admin-pagination';
 import type { Order, OrderStatus } from '../../../../shared/models/order';
 import { AdminConfirmService } from '../../services/admin-confirm.service';
+import { AdminLocalitiesService } from '../../services/admin-localities.service';
+import { HttpErrorMessageService } from '../../../../shared/services/http-error-message.service';
+import { API_CONFIG } from '../../../../core/config/api.config';
 
 interface DraftLine {
   productId: string;
@@ -39,14 +42,27 @@ interface DraftLine {
           </svg>
           <input
             type="text"
-            [(ngModel)]="searchQuery"
-            (ngModelChange)="currentPage.set(1)"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event); currentPage.set(1)"
             placeholder="Rechercher par N° ou client..."
           />
         </div>
 
         <div class="admin-filter-group">
-          <select [(ngModel)]="statusFilter" (ngModelChange)="currentPage.set(1)">
+          <select
+            [ngModel]="localityFilter()"
+            (ngModelChange)="localityFilter.set($event); currentPage.set(1)"
+            aria-label="Filtrer par localité"
+          >
+            <option value="all">Toutes les localités</option>
+            @for (l of localities.localities(); track l.id) {
+              <option [value]="'' + l.id">{{ l.name }}</option>
+            }
+          </select>
+          <select
+            [ngModel]="statusFilter()"
+            (ngModelChange)="statusFilter.set($event); currentPage.set(1)"
+          >
             <option value="all">Tous les statuts</option>
             <option value="en_attente">En attente</option>
             <option value="en_cours">En cours</option>
@@ -63,9 +79,9 @@ interface DraftLine {
               <tr>
                 <th>N° Commande</th>
                 <th>Client</th>
+                <th>Localité &bull; Partenaire</th>
                 <th>Articles</th>
-                <th>Canal</th>
-                <th>Total TTC</th>
+                <th>Total &bull; Acompte</th>
                 <th>Statut</th>
                 <th style="text-align: right;">Actions</th>
               </tr>
@@ -80,6 +96,15 @@ interface DraftLine {
                   <td>
                     <div>{{ order.customerName || '—' }}</div>
                     <span class="admin-table__subtext">{{ order.customerPhone || '' }}</span>
+                    <span class="admin-table__subtext">
+                      {{ order.orderType === 'whatsapp' ? 'WhatsApp' : 'Appel' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div>{{ order.deliveryDistrict || '—' }}</div>
+                    <span class="admin-table__subtext">{{
+                      order.partnerName || 'Sans partenaire'
+                    }}</span>
                   </td>
                   <td>
                     <div class="admin-order-items-preview">
@@ -91,12 +116,12 @@ interface DraftLine {
                     </div>
                   </td>
                   <td>
-                    <app-admin-badge variant="info">
-                      {{ order.orderType === 'whatsapp' ? 'WhatsApp' : 'Appel' }}
-                    </app-admin-badge>
-                  </td>
-                  <td>
                     <strong class="admin-price-tag">{{ formatPrice(order.totalPrice) }}</strong>
+                    @if (order.upfrontAmount !== undefined) {
+                      <span class="admin-table__subtext"
+                        >acompte {{ formatPrice(order.upfrontAmount) }}</span
+                      >
+                    }
                   </td>
                   <td>
                     <app-admin-badge [variant]="getOrderBadgeVariant(order.status)">
@@ -105,6 +130,14 @@ interface DraftLine {
                   </td>
                   <td style="text-align: right;">
                     <div class="admin-table__actions" style="justify-content: flex-end; gap: 8px;">
+                      <button
+                        type="button"
+                        class="admin-btn admin-btn--sm admin-btn--outline"
+                        (click)="openDetail(order)"
+                        title="Répartition, partenaire et livreur"
+                      >
+                        Détail
+                      </button>
                       <button
                         type="button"
                         class="admin-btn admin-btn--sm admin-btn--whatsapp"
@@ -198,6 +231,17 @@ interface DraftLine {
               />
             </div>
           </div>
+          <div class="admin-form__field">
+            <label>Localité de livraison *</label>
+            <select [(ngModel)]="cLocalityId" name="cLocalityId">
+              <option [ngValue]="null">— Choisir la localité —</option>
+              @for (l of localities.activeLocalities(); track l.id) {
+                <option [ngValue]="l.id" [disabled]="!l.partnerId || !l.partnerActive">
+                  {{ l.name }}{{ !l.partnerId || !l.partnerActive ? ' (pas de partenaire)' : '' }}
+                </option>
+              }
+            </select>
+          </div>
           <div class="admin-form__row">
             <div class="admin-form__field">
               <label>Adresse de livraison</label>
@@ -278,6 +322,162 @@ interface DraftLine {
         </div>
       </app-admin-modal>
 
+      <!-- Détail : répartition de l'argent, partenaire et livreur -->
+      <app-admin-modal
+        [title]="detail() ? 'Commande ' + detail()!.orderNumber : ''"
+        [isOpen]="detail() !== null"
+        [showFooter]="false"
+        (close)="closeDetail()"
+      >
+        @if (detail(); as o) {
+          <div class="order-detail">
+            <section>
+              <h4>Client</h4>
+              <p>
+                <strong>{{ o.customerName || '—' }}</strong> · {{ o.customerPhone || '—' }}<br />
+                Livraison à <strong>{{ o.deliveryDistrict || '—' }}</strong>
+                @if (o.deliveryAddress) {
+                  — {{ o.deliveryAddress }}
+                }
+                @if (mapsUrl(o); as maps) {
+                  · <a [href]="maps" target="_blank" rel="noopener">position GPS</a>
+                }
+              </p>
+            </section>
+
+            @if (o.upfrontAmount !== undefined && o.partnerAmount !== undefined) {
+              <section>
+                <h4>Répartition de l'argent</h4>
+                <dl class="split">
+                  <div>
+                    <dt>Total payé par le client</dt>
+                    <dd>{{ formatPrice(o.totalPrice) }}</dd>
+                  </div>
+                  <div class="split__highlight">
+                    <dt>
+                      Acompte à recevoir avant de confirmer<br /><small
+                        >part SansFile {{ formatPrice(o.upfrontAmount - o.deliveryFee) }} +
+                        livraison {{ formatPrice(o.deliveryFee) }}</small
+                      >
+                    </dt>
+                    <dd>{{ formatPrice(o.upfrontAmount) }}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      Encaissé par le livreur à la livraison<br /><small
+                        >part du partenaire (prix de gros)</small
+                      >
+                    </dt>
+                    <dd>{{ formatPrice(o.partnerAmount) }}</dd>
+                  </div>
+                  <div>
+                    <dt>À payer au livreur par SansFile</dt>
+                    <dd>{{ formatPrice(o.deliveryFee) }}</dd>
+                  </div>
+                </dl>
+              </section>
+            } @else {
+              <p class="muted">Commande passée avant les localités : pas de répartition.</p>
+            }
+
+            @if (o.partnerName) {
+              <section>
+                <h4>Partenaire</h4>
+                <p>
+                  <strong>{{ o.partnerName }}</strong>
+                  @if (o.partnerPhone) {
+                    · {{ o.partnerPhone }}
+                  }
+                </p>
+                @if (o.invoiceToken) {
+                  <div class="detail-actions detail-actions--start">
+                    @if (o.partnerPhone && (o.status === 'en_cours' || o.status === 'livre')) {
+                      <button
+                        type="button"
+                        class="admin-btn admin-btn--sm admin-btn--whatsapp"
+                        (click)="sendInvoiceToPartner(o)"
+                      >
+                        Envoyer la facture au partenaire (WhatsApp)
+                      </button>
+                    }
+                    <a
+                      class="admin-btn admin-btn--sm admin-btn--secondary"
+                      [href]="invoiceUrl(o)"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      Voir la facture
+                    </a>
+                  </div>
+                  @if (o.status === 'en_attente') {
+                    <p class="muted">
+                      La facture s'envoie au partenaire une fois l'acompte reçu et la commande
+                      confirmée.
+                    </p>
+                  }
+                }
+                @if (o.stockDeducted) {
+                  <p class="muted">Articles retirés du stock du partenaire.</p>
+                }
+              </section>
+
+              <section>
+                <h4>Livreur du partenaire</h4>
+                <div class="admin-form__row">
+                  <div class="admin-form__field">
+                    <label for="courier-name">Nom</label>
+                    <input
+                      id="courier-name"
+                      type="text"
+                      [(ngModel)]="courierName"
+                      maxlength="100"
+                    />
+                  </div>
+                  <div class="admin-form__field">
+                    <label for="courier-phone">Téléphone / Wave</label>
+                    <input id="courier-phone" type="tel" [(ngModel)]="courierPhone" />
+                  </div>
+                </div>
+                <label class="checkbox">
+                  <input type="checkbox" [(ngModel)]="courierPaid" />
+                  Livreur payé ({{ formatPrice(o.deliveryFee) }})
+                </label>
+                <div class="detail-actions">
+                  <button
+                    type="button"
+                    class="admin-btn admin-btn--sm admin-btn--primary"
+                    [disabled]="savingCourier()"
+                    (click)="saveCourier(o)"
+                  >
+                    {{ savingCourier() ? 'Enregistrement…' : 'Enregistrer le livreur' }}
+                  </button>
+                </div>
+              </section>
+            }
+
+            @if (o.status === 'en_attente') {
+              <section class="confirm-box">
+                <p>
+                  Confirmez la commande quand l'acompte
+                  @if (o.upfrontAmount !== undefined) {
+                    de <strong>{{ formatPrice(o.upfrontAmount) }}</strong>
+                  }
+                  est reçu : ses articles sortent du stock du partenaire. Envoyez-lui ensuite la
+                  facture.
+                </p>
+                <button
+                  type="button"
+                  class="admin-btn admin-btn--sm admin-btn--primary"
+                  (click)="confirmOrder(o.id)"
+                >
+                  Acompte reçu : confirmer
+                </button>
+              </section>
+            }
+          </div>
+        }
+      </app-admin-modal>
+
       @if (toast()) {
         <div class="admin-toast-banner">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -292,14 +492,34 @@ interface DraftLine {
 })
 export class AdminCommandesPage {
   protected readonly data = inject(AdminDataService);
+  protected readonly localities = inject(AdminLocalitiesService);
   private readonly confirmService = inject(AdminConfirmService);
+  private readonly errorMessages = inject(HttpErrorMessageService);
 
-  protected searchQuery = '';
-  protected statusFilter = 'all';
+  protected readonly searchQuery = signal('');
+  protected readonly statusFilter = signal('all');
+  /** 'all' ou identifiant de localité. */
+  protected readonly localityFilter = signal('all');
 
   protected readonly currentPage = signal<number>(1);
   protected readonly pageSize = signal<number>(10);
   protected readonly toast = signal<string | null>(null);
+
+  // ── Détail : répartition, partenaire, livreur ──
+  private readonly detailId = signal<string | null>(null);
+  /** Toujours la version à jour de la commande (temps réel, enregistrement du livreur). */
+  protected readonly detail = computed<Order | null>(() => {
+    const id = this.detailId();
+    return id ? (this.data.orders().find((o) => o.id === id) ?? null) : null;
+  });
+  protected readonly savingCourier = signal(false);
+  protected courierName = '';
+  protected courierPhone = '';
+  protected courierPaid = false;
+
+  constructor() {
+    this.localities.ensureLocalities();
+  }
 
   // ── Création admin ──
   protected readonly isCreateOpen = signal(false);
@@ -311,10 +531,12 @@ export class AdminCommandesPage {
   protected cAddress = '';
   protected cDistrict = '';
   protected cStatus: 'EN_COURS' | 'EN_ATTENTE' = 'EN_COURS';
+  protected cLocalityId: number | null = null;
 
   protected readonly filteredOrders = computed(() => {
-    const q = this.searchQuery.toLowerCase().trim();
-    const st = this.statusFilter;
+    const q = this.searchQuery().toLowerCase().trim();
+    const st = this.statusFilter();
+    const locality = this.localityFilter();
     return this.data.orders().filter((o) => {
       const matchQ =
         !q ||
@@ -322,9 +544,75 @@ export class AdminCommandesPage {
         (o.customerName || '').toLowerCase().includes(q) ||
         (o.customerPhone || '').includes(q);
       const matchSt = st === 'all' || o.status === st;
-      return matchQ && matchSt;
+      const matchLocality = locality === 'all' || String(o.localityId ?? '') === locality;
+      return matchQ && matchSt && matchLocality;
     });
   });
+
+  protected closeDetail(): void {
+    this.detailId.set(null);
+  }
+
+  protected openDetail(order: Order): void {
+    this.detailId.set(order.id);
+    this.courierName = order.courierName ?? '';
+    this.courierPhone = order.courierPhone ?? '';
+    this.courierPaid = order.courierPaid === true;
+  }
+
+  protected saveCourier(order: Order): void {
+    this.savingCourier.set(true);
+    this.data
+      .updateCourier(order.id, {
+        courierName: this.courierName,
+        courierPhone: this.courierPhone,
+        courierPaid: this.courierPaid,
+      })
+      .subscribe({
+        next: () => {
+          this.savingCourier.set(false);
+          this.showToast('Livreur enregistré.');
+        },
+        error: (err) => {
+          this.savingCourier.set(false);
+          alert(this.errorMessages.message(err, "Le livreur n'a pas pu être enregistré."));
+        },
+      });
+  }
+
+  protected mapsUrl(order: Order): string | null {
+    if (order.deliveryLatitude !== undefined && order.deliveryLongitude !== undefined) {
+      return `https://maps.google.com/?q=${order.deliveryLatitude},${order.deliveryLongitude}`;
+    }
+    const gps = order.notes?.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+    return gps ? `https://maps.google.com/?q=${gps[1]},${gps[2]}` : null;
+  }
+
+  /** Facture du partenaire : page ouverte sans connexion (photos des articles, client, montant à encaisser). */
+  protected invoiceUrl(order: Order): string {
+    return new URL(
+      `${API_CONFIG.baseUrl}/public/invoices/${order.invoiceToken}`,
+      window.location.origin,
+    ).href;
+  }
+
+  /**
+   * Facture envoyée au partenaire sur WhatsApp : le lien de la facture (photos des articles à préparer,
+   * client à livrer, montant que son livreur encaisse). Jamais la part SansFile.
+   */
+  protected sendInvoiceToPartner(order: Order): void {
+    if (!order.partnerPhone || !order.invoiceToken) return;
+    const articles = order.items.reduce((sum, it) => sum + it.quantity, 0);
+    let msg = `📦 *Commande SansFile ${order.orderNumber}*\n\n`;
+    msg += `Bonjour${order.partnerName ? ' ' + order.partnerName : ''}, voici la facture à préparer `;
+    msg += `(${articles} article${articles > 1 ? 's' : ''}, avec les photos) :\n${this.invoiceUrl(order)}\n\n`;
+    msg += `📍 *Livraison :* ${order.deliveryDistrict || ''}${order.deliveryAddress ? ' — ' + order.deliveryAddress : ''}\n`;
+    if (order.partnerAmount !== undefined) {
+      msg += `💵 *Votre livreur encaisse à la livraison :* ${this.formatPrice(order.partnerAmount)}\n`;
+    }
+    const phone = order.partnerPhone.replace(/\D/g, '');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
 
   protected readonly paginatedOrders = computed(() => {
     const list = this.filteredOrders();
@@ -438,8 +726,10 @@ export class AdminCommandesPage {
 
   protected confirmOrder(orderId: string): void {
     this.data.confirmOrder(orderId).subscribe({
-      next: () => this.showToast('Commande confirmée (en préparation).'),
-      error: () => alert('Impossible de confirmer la commande.'),
+      next: () => this.showToast('Commande confirmée : stock du partenaire mis à jour.'),
+      // Stock insuffisant chez le partenaire : le serveur dit quel article manque
+      error: (err) =>
+        alert(this.errorMessages.message(err, 'Impossible de confirmer la commande.')),
     });
   }
 
@@ -463,8 +753,8 @@ export class AdminCommandesPage {
 
     this.data.updateOrderStatus(orderId, newStatus).subscribe({
       next: () => this.showToast('Statut mis à jour.'),
-      error: () => {
-        alert('Impossible de mettre à jour le statut. Réessayez.');
+      error: (err) => {
+        alert(this.errorMessages.message(err, 'Impossible de mettre à jour le statut. Réessayez.'));
         if (order) select.value = order.status;
       },
     });
@@ -477,6 +767,7 @@ export class AdminCommandesPage {
     this.cAddress = '';
     this.cDistrict = '';
     this.cStatus = 'EN_COURS';
+    this.cLocalityId = null;
     this.draftLines.set([{ productId: '', quantity: 1 }]);
     this.createError.set(null);
     this.isCreateOpen.set(true);
@@ -522,6 +813,12 @@ export class AdminCommandesPage {
       this.createError.set('Ajoutez au moins un article valide.');
       return;
     }
+    if (!this.cLocalityId) {
+      this.createError.set(
+        'Choisissez la localité de livraison (son partenaire prépare la commande).',
+      );
+      return;
+    }
 
     this.creating.set(true);
     this.createError.set(null);
@@ -533,6 +830,7 @@ export class AdminCommandesPage {
         deliveryAddress: this.cAddress.trim() || undefined,
         deliveryDistrict: this.cDistrict.trim() || undefined,
         status: this.cStatus,
+        localityId: this.cLocalityId,
       })
       .subscribe({
         next: () => {
@@ -542,7 +840,9 @@ export class AdminCommandesPage {
         },
         error: (err) => {
           this.creating.set(false);
-          this.createError.set(err?.error?.error || "Impossible d'enregistrer la commande.");
+          this.createError.set(
+            this.errorMessages.message(err, "Impossible d'enregistrer la commande."),
+          );
         },
       });
   }

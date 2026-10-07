@@ -2,6 +2,7 @@ import { Component, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { ClientLayout } from '../../../shared/components/client-layout/client-layout';
 import { LocationHeader } from '../../../shared/components/location-header/location-header';
+import { LocalityMenuItem } from '../../../shared/components/locality-menu-item/locality-menu-item';
 import { StatCard } from '../../../shared/components/stat-card/stat-card';
 import { ConfirmModal } from '../../../shared/components/confirm-modal/confirm-modal';
 import { NotificationService } from '../../../shared/services/notification.service';
@@ -11,7 +12,7 @@ import { AuthSessionService } from '../../auth/auth-session.service';
 
 @Component({
   selector: 'app-coiffeur-profile-page',
-  imports: [ClientLayout, LocationHeader, StatCard, ConfirmModal],
+  imports: [ClientLayout, LocationHeader, StatCard, ConfirmModal, LocalityMenuItem],
   template: `
     <app-client-layout activeNav="profile" role="coiffeur" [hasHeaderSlot]="true">
       <!-- Fixed Header -->
@@ -49,6 +50,11 @@ import { AuthSessionService } from '../../auth/auth-session.service';
 
         <!-- Menu Items -->
         <nav class="profile-page__menu" aria-label="Menu profil coiffeur">
+          <!-- Ma localité (celle du salon une fois rattaché) -->
+          <app-locality-menu-item />
+
+          <div class="profile-page__divider"></div>
+
           <!-- Photos du Profil & Salon -->
           <button type="button" class="profile-page__menu-item" (click)="goToPhotos()">
             <span class="profile-page__menu-icon">

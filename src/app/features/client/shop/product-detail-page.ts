@@ -7,6 +7,7 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { Product } from '../../../shared/models/product';
 import { ProductService } from '../../../shared/services/product.service';
 import { CartService } from '../../../shared/services/cart.service';
+import { LocalityService } from '../../../shared/services/locality.service';
 
 @Component({
   selector: 'app-product-detail-page',
@@ -118,9 +119,13 @@ import { CartService } from '../../../shared/services/cart.service';
                 </button>
               </div>
 
-              <span class="product-detail-page__stock-status">
+              <span
+                class="product-detail-page__stock-status"
+                [class.product-detail-page__stock-status--out]="!availableHere()"
+              >
                 <span class="product-detail-page__stock-dot"></span>
-                En stock
+                {{ availableHere() ? 'Disponible' : 'Indisponible' }} à
+                {{ localityService.shopLocalityName() || 'votre localité' }}
               </span>
             </div>
           </section>
@@ -130,7 +135,12 @@ import { CartService } from '../../../shared/services/cart.service';
       <!-- Fixed Footer Slot -->
       @if (product && !loading()) {
         <div slot="footer" class="product-detail-page__fixed-footer">
-          <button type="button" class="product-detail-page__add-btn" (click)="addToCart()">
+          <button
+            type="button"
+            class="product-detail-page__add-btn"
+            [disabled]="!availableHere()"
+            (click)="addToCart()"
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -156,6 +166,13 @@ export class ProductDetailPage implements OnInit {
   private readonly router = inject(Router);
   private readonly productService = inject(ProductService);
   protected readonly cartService = inject(CartService);
+  protected readonly localityService = inject(LocalityService);
+
+  /** Le partenaire de la localité du compte a ce produit en stock. */
+  protected readonly availableHere = computed(() => {
+    const id = this.productId();
+    return !!id && this.productService.isAvailableHere(id);
+  });
 
   protected readonly productId = signal<string | null>(null);
   protected readonly fallbackProduct = signal<Product | null>(null);
@@ -191,7 +208,7 @@ export class ProductDetailPage implements OnInit {
         if (found) {
           this.selectedImage.set(found.images[0] || '');
         } else {
-          this.error.set('Produit introuvable');
+          this.error.set("Ce produit n'est pas disponible dans votre localité.");
         }
         this.loading.set(false);
       },
@@ -220,7 +237,7 @@ export class ProductDetailPage implements OnInit {
   }
 
   protected addToCart(): void {
-    if (!this.product) return;
+    if (!this.product || !this.availableHere()) return;
     this.cartService.addToCart(this.product, this.quantity());
     this.router.navigate(['/client/boutique/panier']);
   }

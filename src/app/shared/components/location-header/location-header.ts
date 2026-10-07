@@ -2,9 +2,12 @@ import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { FavoritesService } from '../../services/favorites.service';
 import { NotificationService } from '../../services/notification.service';
+import { LocalityService } from '../../services/locality.service';
+import { LocalityPickerSheet } from '../locality-picker/locality-picker-sheet';
 
 @Component({
   selector: 'app-location-header',
+  imports: [LocalityPickerSheet],
   template: `
     <header class="location-header">
       @if (showSalonToggle) {
@@ -33,7 +36,12 @@ import { NotificationService } from '../../services/notification.service';
           </span>
         </button>
       } @else if (showLocation) {
-        <button class="location-header__selector" (click)="locationClick.emit()" type="button">
+        <button
+          class="location-header__selector"
+          (click)="onLocationClick()"
+          type="button"
+          aria-label="Changer de localité"
+        >
           <span class="location-header__pin-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path
@@ -41,7 +49,7 @@ import { NotificationService } from '../../services/notification.service';
               />
             </svg>
           </span>
-          <span class="location-header__text">{{ location }}</span>
+          <span class="location-header__text">{{ location || localityService.viewedLabel() }}</span>
           <span class="location-header__chevron" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M6 9l6 6 6-6" />
@@ -108,6 +116,10 @@ import { NotificationService } from '../../services/notification.service';
         </button>
       </div>
     </header>
+
+    @if (showLocation && !showSalonToggle) {
+      <app-locality-picker-sheet />
+    }
   `,
   styleUrl: './location-header.scss',
 })
@@ -115,8 +127,15 @@ export class LocationHeader {
   private readonly favoritesService = inject(FavoritesService);
   private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
+  protected readonly localityService = inject(LocalityService);
 
-  @Input() location = 'Dakar, Sénégal';
+  constructor() {
+    // Noms des localités pour le libellé de l'en-tête (liste mise en cache)
+    void this.localityService.loadLocalities();
+  }
+
+  /** Libellé imposé ; par défaut, la localité regardée (choisie dans la feuille des localités). */
+  @Input() location?: string;
   @Input() showLocation = true;
   @Input() hasNotification = true;
   @Input() notificationCount?: number;
@@ -176,5 +195,13 @@ export class LocationHeader {
 
   protected onSalonToggleClick(): void {
     this.salonToggleClick.emit();
+  }
+
+  protected onLocationClick(): void {
+    if (this.locationClick.observed) {
+      this.locationClick.emit();
+    } else {
+      this.localityService.openPicker();
+    }
   }
 }

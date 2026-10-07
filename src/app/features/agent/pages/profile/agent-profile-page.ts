@@ -29,6 +29,16 @@ import { AgentAuthService } from '../../services/agent-auth.service';
             <dt>Téléphone</dt>
             <dd>{{ auth.profile()?.phone || 'Non renseigné' }}</dd>
           </div>
+          <div>
+            <dt>Mes localités</dt>
+            <dd>
+              @for (l of auth.localities(); track l.id; let last = $last) {
+                {{ l.name }}{{ last ? '' : ', ' }}
+              } @empty {
+                Aucune (affectation par l'administration)
+              }
+            </dd>
+          </div>
         </dl>
         <a routerLink="/agent/mot-de-passe" class="agent-btn agent-btn--outline agent-btn--block">
           Changer mon mot de passe

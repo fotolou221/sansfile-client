@@ -80,7 +80,9 @@ import { Order } from '../../../shared/models/order';
             </div>
 
             <div class="order-detail-page__summary-row">
-              <span>Livraison</span>
+              <span
+                >Livraison{{ order.deliveryDistrict ? ' à ' + order.deliveryDistrict : '' }}</span
+              >
               <strong>{{ formatPrice(order.deliveryFee) }} FCFA</strong>
             </div>
 
@@ -92,6 +94,34 @@ import { Order } from '../../../shared/models/order';
                 >{{ formatPrice(order.totalPrice) }} FCFA</strong
               >
             </div>
+
+            @if (order.upfrontAmount !== undefined && order.partnerAmount !== undefined) {
+              <div class="order-detail-page__split">
+                <div class="order-detail-page__summary-row">
+                  <span>{{
+                    order.status === 'en_attente'
+                      ? 'À envoyer maintenant (Wave / Orange Money)'
+                      : 'Acompte envoyé à SansFile'
+                  }}</span>
+                  <strong>{{ formatPrice(order.upfrontAmount) }} FCFA</strong>
+                </div>
+                <div class="order-detail-page__summary-row">
+                  <span>À payer au livreur à la réception</span>
+                  <strong>{{ formatPrice(order.partnerAmount) }} FCFA</strong>
+                </div>
+                @if (order.status === 'en_cours' && order.courierName) {
+                  <div class="order-detail-page__summary-row">
+                    <span>Votre livreur</span>
+                    <strong>
+                      {{ order.courierName }}
+                      @if (order.courierPhone) {
+                        · <a [href]="'tel:' + order.courierPhone">{{ order.courierPhone }}</a>
+                      }
+                    </strong>
+                  </div>
+                }
+              </div>
+            }
           </section>
         </div>
       }

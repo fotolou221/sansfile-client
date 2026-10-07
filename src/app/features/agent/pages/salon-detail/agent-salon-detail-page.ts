@@ -45,7 +45,9 @@ import { AgentDataService } from '../../services/agent-data.service';
           <div class="salon-card__head">
             <div>
               <h1 class="agent-title">{{ s.name }}</h1>
-              <p class="agent-subtitle">{{ s.district }}, {{ s.location }}</p>
+              <p class="agent-subtitle">
+                {{ s.localityName ? s.localityName + ' — ' : '' }}{{ s.district }}, {{ s.location }}
+              </p>
             </div>
             <span
               class="agent-chip"
@@ -106,7 +108,7 @@ import { AgentDataService } from '../../services/agent-data.service';
             }
           </dl>
 
-          @if (isMine()) {
+          @if (canEdit()) {
             <a
               [routerLink]="['/agent/salons', s.id, 'modifier']"
               class="agent-btn agent-btn--outline agent-btn--block"
@@ -231,9 +233,11 @@ export class AgentSalonDetailPage implements OnInit {
     const s = this.salon();
     return s ? buildSalonTicketUrl(s.slug || String(s.id)) : '';
   });
-  protected readonly isMine = computed(
-    () => this.salon()?.createdByAgentId === this.auth.profile()?.id,
-  );
+  /** Salon de ses localités (ou inscrit par lui avant les localités) : correction possible. */
+  protected readonly canEdit = computed(() => {
+    const s = this.salon();
+    return !!s && this.auth.canEditSalon(s);
+  });
 
   async ngOnInit(): Promise<void> {
     const params = this.route.snapshot.queryParamMap;

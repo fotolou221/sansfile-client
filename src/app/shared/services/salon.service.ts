@@ -5,6 +5,12 @@ import { Salon, SalonAction } from '../models/salon';
 import { TicketOwner } from '../models/ticket-owner';
 import { API_CONFIG } from '../../core/config/api.config';
 import { HttpErrorMessageService } from './http-error-message.service';
+import { LocalityService } from './locality.service';
+
+/** Recherche sans accents ni majuscules : « medina » trouve « Médina ». */
+function normalizeSearch(value: string): string {
+  return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+}
 
 export const DEFAULT_TICKET_OWNERS: readonly TicketOwner[] = [
   {
@@ -29,6 +35,7 @@ export const DEFAULT_TICKET_OWNERS: readonly TicketOwner[] = [
 export class SalonService {
   private readonly http = inject(HttpClient);
   private readonly errorMessages = inject(HttpErrorMessageService);
+  private readonly localityService = inject(LocalityService);
   private readonly baseUrl = API_CONFIG.baseUrl;
 
   // ── State Signals ───────────────────────────────────────────
@@ -42,24 +49,37 @@ export class SalonService {
   private readonly CACHE_TTL_MS = 5 * 60 * 1000;
 
   readonly searchQuery = signal<string>('');
-  readonly currentLocation = signal<string>('Dakar, Sénégal');
   readonly selectedOwner = signal<TicketOwner>(DEFAULT_TICKET_OWNERS[0]);
   readonly customOwnerName = signal<string>('');
 
   // ── Filtered Salons Computed ────────────────────────────────
+  /**
+   * Salons de la localité regardée (sélecteur de l'en-tête). Une recherche porte sur toutes les
+   * localités : un client doit retrouver son salon habituel même s'il est ailleurs.
+   */
   readonly filteredSalons = computed(() => {
-    const query = this.searchQuery().toLowerCase().trim();
+    const query = normalizeSearch(this.searchQuery());
     const list = this.salons();
     if (!query) {
-      return list;
+      return this.inViewedLocality(list);
     }
-    return list.filter(
-      (salon) =>
-        salon.name.toLowerCase().includes(query) ||
-        salon.location.toLowerCase().includes(query) ||
-        salon.district.toLowerCase().includes(query),
+    return list.filter((salon) =>
+      [salon.name, salon.location, salon.district, this.localityNameOf(salon)].some((value) =>
+        normalizeSearch(value ?? '').includes(query),
+      ),
     );
   });
+
+  /** Salons de la localité regardée (toutes si « Toutes les localités »). */
+  inViewedLocality(list: readonly Salon[]): readonly Salon[] {
+    const localityId = this.localityService.viewedLocalityId();
+    return localityId === null ? list : list.filter((s) => s.localityId === localityId);
+  }
+
+  /** Nom de la localité d'un salon (fourni par le serveur, sinon retrouvé dans la liste). */
+  localityNameOf(salon: Salon): string | null {
+    return salon.localityName ?? this.localityService.nameOf(salon.localityId ?? null);
+  }
 
   constructor() {
     this.loadSalons();
@@ -84,8 +104,11 @@ export class SalonService {
     }
     this.error.set(null);
 
+    // Tous les salons (la pagination par défaut du serveur s'arrête à 20) : filtrage par localité ici
     this.http
-      .get<any[]>(`${this.baseUrl}${API_CONFIG.endpoints.salons}`)
+      .get<any[]>(`${this.baseUrl}${API_CONFIG.endpoints.salons}`, {
+        params: { page: 0, size: 1000 },
+      })
       .pipe(
         map((data) =>
           data.map((s) => ({

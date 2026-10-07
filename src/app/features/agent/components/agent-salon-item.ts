@@ -20,7 +20,10 @@ import { AgentSalon } from '../models/agent';
       }
       <span class="agent-salon-item__body">
         <strong>{{ salon().name }}</strong>
-        <span>{{ salon().district }} · {{ salon().ownerName || 'Propriétaire' }}</span>
+        <span
+          >{{ salon().localityName ? salon().localityName + ' — ' : '' }}{{ salon().district }} ·
+          {{ salon().ownerName || 'Propriétaire' }}</span
+        >
         @if (salon().createdDate) {
           <span>Inscrit le {{ formatDate(salon().createdDate!) }}</span>
         }

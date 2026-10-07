@@ -6,6 +6,7 @@ import { HttpErrorMessageService } from '../../../../shared/services/http-error-
 import { AdminBadge } from '../../components/admin-badge/admin-badge';
 import { AdminModal } from '../../components/admin-modal/admin-modal';
 import { AdminConfirmService } from '../../services/admin-confirm.service';
+import { AdminLocalitiesService } from '../../services/admin-localities.service';
 import {
   AdminAgent,
   AdminAgentsService,
@@ -47,6 +48,26 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
           </button>
         </div>
       </div>
+
+      @if (agentsWithoutLocality() > 0) {
+        <div class="warning-card">
+          <span>
+            <strong>{{ agentsWithoutLocality() }} agent(s) sans localité</strong> : ils peuvent se
+            connecter mais ne peuvent ni inscrire ni modifier de salon.
+          </span>
+          <button
+            type="button"
+            class="admin-btn admin-btn--sm admin-btn--outline"
+            [disabled]="autoAssigning()"
+            (click)="autoAssign()"
+          >
+            {{ autoAssigning() ? 'Affectation…' : "Affecter d'après leurs salons" }}
+          </button>
+        </div>
+      }
+      @if (autoAssignMessage()) {
+        <div class="info-card">{{ autoAssignMessage() }}</div>
+      }
 
       <div class="info-card">
         <strong>Connexion des agents :</strong>
@@ -91,6 +112,7 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
               <tr>
                 <th>Agent</th>
                 <th>Téléphone</th>
+                <th>Localités</th>
                 <th>Salons inscrits</th>
                 <th>Dernière connexion</th>
                 <th>Statut</th>
@@ -110,6 +132,22 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
                     </div>
                   </td>
                   <td>{{ agent.phone || '—' }}</td>
+                  <td>
+                    <button
+                      type="button"
+                      class="localities-cell"
+                      title="Modifier les localités"
+                      (click)="openLocalities(agent)"
+                    >
+                      @for (l of agent.localities; track l.id) {
+                        <app-admin-badge [variant]="l.active ? 'info' : 'neutral'">{{
+                          l.name
+                        }}</app-admin-badge>
+                      } @empty {
+                        <app-admin-badge variant="danger">Aucune localité</app-admin-badge>
+                      }
+                    </button>
+                  </td>
                   <td>
                     <app-admin-badge [variant]="agent.salonsCount > 0 ? 'primary' : 'neutral'">
                       {{ agent.salonsCount }} salon{{ agent.salonsCount > 1 ? 's' : '' }}
@@ -176,7 +214,7 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6" class="admin-table__empty">
+                  <td colspan="7" class="admin-table__empty">
                     @if (!agentsService.loaded()) {
                       Chargement des agents…
                     } @else if (agentsService.agents().length === 0) {
@@ -276,6 +314,68 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
         </form>
       </app-admin-modal>
 
+      <!-- Localités de l'agent -->
+      <app-admin-modal
+        [title]="
+          localitiesAgent()
+            ? 'Localités de ' + localitiesAgent()!.firstName + ' ' + localitiesAgent()!.lastName
+            : ''
+        "
+        [isOpen]="localitiesAgent() !== null"
+        [showFooter]="false"
+        (close)="localitiesAgent.set(null)"
+      >
+        @if (localitiesAgent(); as a) {
+          <div class="localities-form">
+            <p class="form-hint">
+              L'agent inscrit et corrige les salons de ces localités seulement. Sans localité, il
+              peut se connecter mais ne peut plus exercer ; le changement est immédiat.
+            </p>
+            @if (localitiesError()) {
+              <div class="form-error">{{ localitiesError() }}</div>
+            }
+            <div class="localities-list">
+              @for (l of assignableLocalities(); track l.id) {
+                <label class="localities-option">
+                  <input
+                    type="checkbox"
+                    [checked]="selectedLocalities().has(l.id)"
+                    (change)="toggleLocality(l.id)"
+                  />
+                  <span>{{ l.name }}</span>
+                  @if (!l.active) {
+                    <span class="muted">(désactivée)</span>
+                  }
+                </label>
+              } @empty {
+                <p class="muted">
+                  Aucune localité. Créez-les d'abord sur la page
+                  <a routerLink="/admin/localites" (click)="localitiesAgent.set(null)">Localités</a
+                  >.
+                </p>
+              }
+            </div>
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="admin-btn admin-btn--outline"
+                (click)="localitiesAgent.set(null)"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                class="admin-btn admin-btn--primary"
+                [disabled]="savingLocalities()"
+                (click)="saveLocalities(a)"
+              >
+                {{ savingLocalities() ? 'Enregistrement…' : 'Enregistrer' }}
+              </button>
+            </div>
+          </div>
+        }
+      </app-admin-modal>
+
       <!-- Identifiants à transmettre -->
       <app-admin-modal
         title="Identifiants à transmettre à l'agent"
@@ -358,7 +458,8 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
                 @for (s of detailSalons(); track s.id) {
                   <li>
                     <span>
-                      <strong>{{ s.name }}</strong> — {{ s.district }}
+                      <strong>{{ s.name }}</strong> — {{ s.localityName || 'sans localité' }},
+                      {{ s.district }}
                       <span class="muted"
                         >({{ s.ownerName || 'propriétaire ?' }}, {{ s.phone }})</span
                       >
@@ -413,6 +514,62 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
+    }
+
+    .warning-card {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      background: rgba(220, 38, 38, 0.06);
+      font-size: 0.875rem;
+      color: var(--text-primary, #0f172a);
+    }
+
+    .localities-cell {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      min-width: 140px;
+      max-width: 240px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .localities-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .localities-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+
+      a {
+        color: var(--primary, #1e5af0);
+      }
+    }
+
+    .localities-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color, #e2e8f0);
+      font-size: 0.875rem;
+      cursor: pointer;
     }
 
     .info-card {
@@ -594,6 +751,27 @@ export class AdminAgentsPage implements OnInit {
   protected readonly detailSalons = signal<AgentSalonSummary[] | null>(null);
   protected readonly detailActivities = signal<AgentActivity[] | null>(null);
 
+  // ── Localités des agents ──
+  private readonly localitiesService = inject(AdminLocalitiesService);
+  protected readonly localitiesAgent = signal<AdminAgent | null>(null);
+  protected readonly selectedLocalities = signal<ReadonlySet<number>>(new Set());
+  protected readonly savingLocalities = signal(false);
+  protected readonly localitiesError = signal<string | null>(null);
+  protected readonly autoAssigning = signal(false);
+  protected readonly autoAssignMessage = signal<string | null>(null);
+
+  protected readonly agentsWithoutLocality = computed(
+    () =>
+      this.agentsService.agents().filter((a) => a.activated && (a.localities?.length ?? 0) === 0)
+        .length,
+  );
+
+  /** Localités actives, plus celles (désactivées) déjà attribuées à l'agent ouvert. */
+  protected readonly assignableLocalities = computed(() => {
+    const current = new Set((this.localitiesAgent()?.localities ?? []).map((l) => l.id));
+    return this.localitiesService.localities().filter((l) => l.active || current.has(l.id));
+  });
+
   protected readonly filtered = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
     const filter = this.statusFilter();
@@ -613,6 +791,73 @@ export class AdminAgentsPage implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    this.localitiesService.ensureLocalities();
+  }
+
+  protected openLocalities(agent: AdminAgent): void {
+    this.localitiesService.ensureLocalities();
+    this.localitiesAgent.set(agent);
+    this.selectedLocalities.set(new Set((agent.localities ?? []).map((l) => l.id)));
+    this.localitiesError.set(null);
+  }
+
+  protected toggleLocality(id: number): void {
+    this.selectedLocalities.update((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  protected async saveLocalities(agent: AdminAgent): Promise<void> {
+    const ids = [...this.selectedLocalities()];
+    if (ids.length === 0 && (agent.localities?.length ?? 0) > 0) {
+      const ok = await this.confirmService.confirm({
+        title: 'Retirer toutes les localités',
+        message: `${agent.firstName} ${agent.lastName} ne pourra plus inscrire ni modifier de salon (il garde l'accès à son espace en lecture).`,
+        confirmLabel: 'Retirer',
+        variant: 'warning',
+      });
+      if (!ok) return;
+    }
+    this.savingLocalities.set(true);
+    this.localitiesError.set(null);
+    this.agentsService.setLocalities(agent.id, ids).subscribe({
+      next: () => {
+        this.savingLocalities.set(false);
+        this.localitiesAgent.set(null);
+      },
+      error: (err) => {
+        this.savingLocalities.set(false);
+        this.localitiesError.set(
+          this.errorMessages.message(err, "Les localités n'ont pas pu être enregistrées."),
+        );
+      },
+    });
+  }
+
+  protected autoAssign(): void {
+    this.autoAssigning.set(true);
+    this.autoAssignMessage.set(null);
+    this.agentsService.autoAssignLocalities().subscribe({
+      next: (res) => {
+        this.autoAssigning.set(false);
+        this.autoAssignMessage.set(
+          `${res.agentsAssigned} agent(s) affecté(s) d'après les localités de leurs salons.` +
+            (res.agentsStillWithout > 0
+              ? ` ${res.agentsStillWithout} agent(s) restent à affecter à la main (aucun salon rattaché à une localité).`
+              : ''),
+        );
+      },
+      error: (err) => {
+        this.autoAssigning.set(false);
+        this.pageError.set(this.errorMessages.message(err, 'Affectation automatique impossible.'));
+      },
+    });
   }
 
   protected reload(): void {

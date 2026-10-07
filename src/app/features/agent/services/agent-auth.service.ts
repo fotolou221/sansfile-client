@@ -32,6 +32,19 @@ export class AgentAuthService {
   readonly profile = signal<AgentProfile | null>(this.loadSession());
   readonly isAuthenticated = computed(() => this.profile() !== null);
   readonly mustChangePassword = computed(() => this.profile()?.mustChangePassword ?? false);
+  /** Localités de l'agent ; aucune : il ne peut ni inscrire ni modifier de salon. */
+  readonly localities = computed(() => this.profile()?.localities ?? []);
+  readonly hasLocality = computed(() => this.localities().length > 0);
+
+  /** Salon modifiable : dans une de ses localités, ou inscrit par lui avant les localités. */
+  canEditSalon(salon: { localityId?: number | null; createdByAgentId?: number | null }): boolean {
+    const profile = this.profile();
+    if (!profile || !this.hasLocality()) return false;
+    if (salon.localityId === null || salon.localityId === undefined) {
+      return salon.createdByAgentId === profile.id;
+    }
+    return this.localities().some((l) => l.id === salon.localityId);
+  }
   readonly displayName = computed(() => {
     const p = this.profile();
     return p ? `${p.firstName} ${p.lastName}`.trim() || p.email : '';
@@ -120,6 +133,11 @@ export class AgentAuthService {
       if (p) this.setProfile({ ...p, mustChangePassword: true });
       void this.router.navigate(['/agent/mot-de-passe']);
       return true;
+    }
+    if (code === 'no-locality' || code === 'locality-not-assigned') {
+      // Localités retirées ou modifiées par l'admin : profil relu, le message du serveur s'affiche
+      this.refreshProfile().subscribe();
+      return false;
     }
     if (code === 'agent-disabled' || code === 'not-agent' || err.status === 401) {
       this.clearSession();

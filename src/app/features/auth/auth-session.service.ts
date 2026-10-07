@@ -16,6 +16,11 @@ export interface AuthUserProfile {
   readonly avatarUrl?: string | null;
   readonly salonId?: number | string;
   readonly salonSlug?: string;
+  /** Localité du compte (celle du salon pour un coiffeur dont le salon est rattaché). */
+  readonly localityId?: number | null;
+  readonly localityName?: string | null;
+  /** false : la page « Ma localité » est imposée avant d'utiliser l'application. */
+  readonly localityChosen?: boolean;
 }
 
 const GUEST_CLIENT_USER: AuthUserProfile = {
@@ -145,6 +150,9 @@ export class AuthSessionService {
           avatarUrl: res.user.avatarUrl,
           salonId: res.user.salonId,
           salonSlug: res.user.salonSlug,
+          localityId: res.user.localityId ?? null,
+          localityName: res.user.localityName ?? null,
+          localityChosen: res.user.localityChosen === true,
         };
         this.currentUserSignal.set(profile);
         this.activeRoleSignal.set(roleClean);
@@ -173,11 +181,24 @@ export class AuthSessionService {
           token?: string;
           refresh_token?: string;
           refreshToken?: string;
+          user?: {
+            localityId?: number | null;
+            localityName?: string | null;
+            localityChosen?: boolean;
+          };
         }>(`${this.baseUrl}/auth/refresh`, { refresh_token: currentRefresh }),
       );
 
       const newToken = res.id_token || res.token;
       const newRefresh = res.refresh_token || res.refreshToken || currentRefresh;
+      // Localité à jour (choisie sur un autre appareil, salon rattaché entre-temps…)
+      if (res.user && typeof res.user.localityChosen === 'boolean') {
+        this.updateLocality({
+          localityId: res.user.localityId ?? null,
+          localityName: res.user.localityName ?? null,
+          localityChosen: res.user.localityChosen,
+        });
+      }
 
       if (newToken) {
         localStorage.setItem(this.tokenKey, newToken);
@@ -242,6 +263,26 @@ export class AuthSessionService {
     }
 
     return updated;
+  }
+
+  /** Localité du compte, mémorisée avec la session (choix après connexion, changement dans le profil). */
+  updateLocality(locality: {
+    localityId: number | null;
+    localityName: string | null;
+    localityChosen: boolean;
+  }): void {
+    const current = this.currentUserSignal();
+    if (!current || current.id === 'guest') return;
+    if (
+      current.localityId === locality.localityId &&
+      current.localityName === locality.localityName &&
+      current.localityChosen === locality.localityChosen
+    ) {
+      return;
+    }
+    const updated: AuthUserProfile = { ...current, ...locality };
+    this.currentUserSignal.set(updated);
+    this.persistUser(updated);
   }
 
   logout(): void {

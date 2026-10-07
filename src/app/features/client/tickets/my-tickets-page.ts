@@ -36,7 +36,6 @@ import { TicketTab } from '../../../shared/models/ticket';
       <!-- Standard App Header -->
       <app-location-header
         slot="header"
-        [location]="salonService.currentLocation()"
         [hasNotification]="notificationService.unreadCount() > 0"
         (notificationClick)="goToNotifications()"
         (favoritesClick)="goToFavorites()"

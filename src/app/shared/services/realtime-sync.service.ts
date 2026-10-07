@@ -8,6 +8,8 @@ import { NotificationService } from './notification.service';
 import { ProductService } from './product.service';
 import { OrderService } from './order.service';
 import { PlatformSettingsService } from './platform-settings.service';
+import { LocalityService } from './locality.service';
+import { AdminLocalitiesService } from '../../features/admin/services/admin-localities.service';
 import { Salon } from '../models/salon';
 
 /**
@@ -29,6 +31,8 @@ export class RealtimeSyncService {
   private readonly productService = inject(ProductService);
   private readonly orderService = inject(OrderService);
   private readonly platformSettings = inject(PlatformSettingsService);
+  private readonly localityService = inject(LocalityService);
+  private readonly adminLocalities = inject(AdminLocalitiesService);
 
   private eventSource: EventSource | null = null;
   private reconnectTimer: any = null;
@@ -215,6 +219,33 @@ export class RealtimeSyncService {
         });
       });
 
+      // ── Localités et boutiques par localité ───────────────
+      // Le flux ne transporte que l'identifiant : chacun recharge la liste publique ou sa boutique
+      this.eventSource.addEventListener('LOCALITIES_UPDATED', () => {
+        this.ngZone.run(() => {
+          void this.localityService.loadLocalities(true);
+          if (this.adminLocalities.localitiesLoaded()) {
+            this.adminLocalities.loadLocalities().subscribe({ error: () => {} });
+          }
+        });
+      });
+
+      this.eventSource.addEventListener('SHOP_UPDATED', (e: MessageEvent) => {
+        this.ngZone.run(() => {
+          let localityId: number | null = null;
+          try {
+            localityId = Number(JSON.parse(e.data)?.localityId) || null;
+          } catch {
+            // identifiant illisible : on recharge par prudence
+          }
+          // Boutique ouverte / fermée, produits ajoutés ou retirés chez le partenaire
+          void this.localityService.loadLocalities(true);
+          if (localityId === null || localityId === this.localityService.shopLocalityId()) {
+            this.productService.loadProducts(true);
+          }
+        });
+      });
+
       // ── Boutique : commandes ──────────────────────────────
       // Le flux ne transporte que l'identifiant de la commande : chacun recharge ses propres commandes via l'API
       const refreshOrders = () => {
@@ -276,6 +307,9 @@ export class RealtimeSyncService {
             ...(newStatus !== undefined ? { status: newStatus as any } : {}),
             ...(newWaiting !== undefined ? { peopleWaiting: newWaiting } : {}),
             ...(newEstimated !== undefined ? { estimatedWaitMinutes: newEstimated } : {}),
+            ...(data.localityId !== undefined
+              ? { localityId: data.localityId, localityName: data.localityName ?? null }
+              : {}),
             ...(data.name ? { name: data.name } : {}),
             ...(data.avatarUrl ? { avatarUrl: data.avatarUrl } : {}),
             ...(data.coverUrl ? { coverUrl: data.coverUrl } : {}),
@@ -297,6 +331,9 @@ export class RealtimeSyncService {
             ...(newStatus !== undefined ? { status: newStatus as any } : {}),
             ...(newWaiting !== undefined ? { peopleWaiting: newWaiting } : {}),
             ...(newEstimated !== undefined ? { estimatedWaitMinutes: newEstimated } : {}),
+            ...(data.localityId !== undefined
+              ? { localityId: data.localityId, localityName: data.localityName ?? null }
+              : {}),
           };
         }
         return s;
@@ -312,6 +349,8 @@ export class RealtimeSyncService {
       name: data.name || 'Nouveau Salon',
       slug: data.slug,
       district: data.district || '',
+      localityId: data.localityId ?? null,
+      localityName: data.localityName ?? null,
       location: data.location || '',
       phone: data.phone || '',
       status: data.status ? data.status.toLowerCase() : 'open',

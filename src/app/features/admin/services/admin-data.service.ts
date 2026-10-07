@@ -18,7 +18,7 @@ import { ProductService } from '../../../shared/services/product.service';
 import { Salon } from '../../../shared/models/salon';
 import { Ticket, TicketStatus } from '../../../shared/models/ticket';
 import { Product } from '../../../shared/models/product';
-import { Order, OrderStatus } from '../../../shared/models/order';
+import { mapOrderSplit, Order, OrderStatus } from '../../../shared/models/order';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { HttpErrorMessageService } from '../../../shared/services/http-error-message.service';
 import { PlatformSettingsService } from '../../../shared/services/platform-settings.service';
@@ -46,6 +46,9 @@ export interface AdminClientUser {
   name: string;
   phone: string;
   district: string;
+  /** Localité choisie par l'utilisateur dans l'application (ou zone demandée pas encore ouverte). */
+  localityId?: number | null;
+  requestedLocality?: string | null;
   avatarUrl?: string;
   role?: 'client' | 'coiffeur' | 'admin';
   ticketsCount: number;
@@ -274,7 +277,7 @@ export class AdminDataService {
 
   loadSalons(): void {
     this.http
-      .get<any[]>(`${this.baseUrl}/salons`)
+      .get<any[]>(`${this.baseUrl}/salons`, { params: { page: 0, size: 1000 } })
       .pipe(
         tap((salons) => {
           if (Array.isArray(salons)) {
@@ -342,6 +345,7 @@ export class AdminDataService {
       peopleWaiting: 0,
       estimatedWaitMinutes: 0,
       active: true,
+      localityId: salon.localityId ?? null,
     };
 
     // 1. Persist Salon to Backend
@@ -468,6 +472,7 @@ export class AdminDataService {
       address: updates.website !== undefined ? updates.website : (updates as any).address,
       status: updates.status ? updates.status.toUpperCase() : undefined,
       active: true,
+      localityId: updates.localityId ?? undefined,
     };
 
     if (!isNaN(numId)) {
@@ -607,7 +612,7 @@ export class AdminDataService {
 
   loadProducts(): void {
     this.http
-      .get<any[]>(`${this.baseUrl}/products`)
+      .get<any[]>(`${this.baseUrl}/products`, { params: { page: 0, size: 1000 } })
       .pipe(
         tap((prods) => {
           if (Array.isArray(prods)) {
@@ -1085,7 +1090,18 @@ export class AdminDataService {
       deliveryAddress: o.deliveryAddress || undefined,
       deliveryDistrict: o.deliveryDistrict || undefined,
       notes: o.notes || undefined,
+      ...mapOrderSplit(o),
     };
+  }
+
+  /** Livreur du partenaire pour la commande et paiement de sa livraison par SansFile. */
+  updateCourier(
+    orderId: string,
+    update: { courierName?: string; courierPhone?: string; courierPaid?: boolean },
+  ): Observable<any> {
+    return this.http
+      .patch<any>(`${this.baseUrl}/orders/${orderId}/courier`, update)
+      .pipe(tap((dto) => this.upsertOrder(dto)));
   }
 
   loadOrders(): void {
@@ -1098,7 +1114,9 @@ export class AdminDataService {
       return;
     }
     this.http
-      .get<any[]>(`${this.baseUrl}/orders`)
+      .get<any[]>(`${this.baseUrl}/orders`, {
+        params: { page: 0, size: 1000, sort: 'createdDate,desc' },
+      })
       .pipe(
         tap((orders) => {
           if (Array.isArray(orders)) {
@@ -1168,6 +1186,7 @@ export class AdminDataService {
     orderType?: 'WHATSAPP' | 'CALL';
     status?: 'EN_ATTENTE' | 'EN_COURS';
     notes?: string;
+    localityId?: number | null;
   }): Observable<any> {
     return this.http
       .post<any>(`${this.baseUrl}/orders/admin-create`, {
@@ -1209,7 +1228,9 @@ export class AdminDataService {
                   name:
                     `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.login || 'Utilisateur',
                   phone: u.phone || u.login || '+221 77 000 00 00',
-                  district: u.district || 'Dakar',
+                  district: u.district || '',
+                  localityId: u.localityId ?? null,
+                  requestedLocality: u.requestedLocality ?? null,
                   avatarUrl: u.imageUrl,
                   role: u.authorities?.includes('ROLE_ADMIN')
                     ? 'admin'

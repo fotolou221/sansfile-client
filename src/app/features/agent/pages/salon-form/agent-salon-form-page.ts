@@ -36,6 +36,13 @@ type PhotoField = 'avatarUrl' | 'coverUrl';
         </p>
       </div>
 
+      @if (!auth.hasLocality()) {
+        <div class="agent-alert agent-alert--danger" role="alert">
+          Vous n'êtes affecté à aucune localité : vous ne pouvez pas inscrire ni modifier de salon.
+          Contactez l'administration.
+        </div>
+      }
+
       @if (error()) {
         <div class="agent-alert agent-alert--danger" role="alert">{{ error() }}</div>
       }
@@ -57,6 +64,16 @@ type PhotoField = 'avatarUrl' | 'coverUrl';
                 placeholder="Ex : Barber King Médina"
                 required
               />
+            </div>
+            <div class="agent-field" [class.agent-field--invalid]="touched() && !form.localityId">
+              <label for="salon-locality">Localité *</label>
+              <select id="salon-locality" name="localityId" [(ngModel)]="form.localityId">
+                <option [ngValue]="null">— Choisir —</option>
+                @for (l of auth.localities(); track l.id) {
+                  <option [ngValue]="l.id">{{ l.name }}</option>
+                }
+              </select>
+              <span class="agent-field__hint">Seules vos localités sont proposées.</span>
             </div>
             <div class="agent-form-row">
               <div
@@ -220,7 +237,7 @@ type PhotoField = 'avatarUrl' | 'coverUrl';
           <button
             type="submit"
             class="agent-btn agent-btn--primary agent-btn--block"
-            [disabled]="saving() || uploading() !== null"
+            [disabled]="saving() || uploading() !== null || !auth.hasLocality()"
           >
             {{
               saving()
@@ -297,7 +314,7 @@ type PhotoField = 'avatarUrl' | 'coverUrl';
 })
 export class AgentSalonFormPage implements OnInit {
   private readonly data = inject(AgentDataService);
-  private readonly auth = inject(AgentAuthService);
+  protected readonly auth = inject(AgentAuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -307,6 +324,7 @@ export class AgentSalonFormPage implements OnInit {
   ];
 
   protected form: AgentSalonForm = {
+    localityId: null,
     name: '',
     ownerName: '',
     phone: '',
@@ -337,16 +355,25 @@ export class AgentSalonFormPage implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
+    // Localités à jour (l'admin a pu les changer depuis la connexion)
+    await firstValueFrom(this.auth.refreshProfile());
+    const mine = this.auth.localities();
     const id = Number(this.route.snapshot.paramMap.get('id'));
-    if (!id) return;
+    if (!id) {
+      this.form.localityId = mine.length === 1 ? mine[0].id : null;
+      return;
+    }
     this.editId.set(id);
     this.loadingSalon.set(true);
     try {
       const salon = await firstValueFrom(this.data.salon(id));
-      if (salon.createdByAgentId !== this.auth.profile()?.id) {
-        this.error.set("Ce salon n'a pas été inscrit par vous : vous ne pouvez pas le modifier.");
+      if (!this.auth.canEditSalon(salon)) {
+        this.error.set(
+          "Ce salon n'est pas dans une de vos localités : vous ne pouvez pas le modifier.",
+        );
       }
       this.form = {
+        localityId: salon.localityId ?? (mine.length === 1 ? mine[0].id : null),
         name: salon.name ?? '',
         ownerName: salon.ownerName ?? '',
         phone: salon.phone ?? '',
@@ -417,7 +444,7 @@ export class AgentSalonFormPage implements OnInit {
   protected async submit(): Promise<void> {
     this.touched.set(true);
     const required = [this.form.name, this.form.district, this.form.location, this.form.ownerName];
-    if (required.some((v) => !v.trim()) || !this.phoneValid()) {
+    if (required.some((v) => !v.trim()) || !this.phoneValid() || !this.form.localityId) {
       this.error.set('Complétez les champs obligatoires (*).');
       return;
     }

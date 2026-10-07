@@ -1,15 +1,29 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { Product, CartItem } from '../models/product';
+import { LocalityService } from './locality.service';
+import { ProductService } from './product.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class CartService {
   private readonly STORAGE_KEY = 'sansfile_cart_items';
+  private readonly localityService = inject(LocalityService);
+  private readonly productService = inject(ProductService);
 
   readonly cartItems = signal<readonly CartItem[]>(this.readInitialCart());
-  readonly deliveryFee = signal(2000);
+  /** Frais de livraison de la localité du compte (fixés par l'administration). */
+  readonly deliveryFee = computed(() => this.localityService.shopLocality()?.deliveryFee ?? 0);
   readonly discount = signal(0);
+
+  /**
+   * Articles du panier que le partenaire de la localité n'a pas (panier rempli dans une autre
+   * localité, produit retiré…). Ils doivent être retirés avant de commander.
+   */
+  readonly unavailableItems = computed(() => {
+    if (this.productService.loading()) return [];
+    return this.cartItems().filter((item) => !this.productService.isAvailableHere(item.product.id));
+  });
 
   // ── Infos de livraison saisies au moment du checkout ──────────
   readonly deliveryAddress = signal<string>('');

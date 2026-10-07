@@ -6,6 +6,7 @@ import { AdminPagination } from '../../components/admin-pagination/admin-paginat
 import { AdminModal } from '../../components/admin-modal/admin-modal';
 import { AdminImageUploader } from '../../components/admin-image-uploader/admin-image-uploader';
 import { AdminConfirmService } from '../../services/admin-confirm.service';
+import { AdminLocalitiesService } from '../../services/admin-localities.service';
 
 @Component({
   selector: 'app-admin-users-page',
@@ -68,7 +69,7 @@ import { AdminConfirmService } from '../../services/admin-confirm.service';
                 <th>Utilisateur / Photo</th>
                 <th>Type de Profil</th>
                 <th>Téléphone</th>
-                <th>Quartier / Ville</th>
+                <th>Localité</th>
                 <th>Tickets pris (Clients)</th>
                 <th>Proches enregistrés</th>
                 <th>Inscrit depuis</th>
@@ -111,7 +112,19 @@ import { AdminConfirmService } from '../../services/admin-confirm.service';
                   <td>
                     <strong>{{ user.phone }}</strong>
                   </td>
-                  <td>{{ user.district }}</td>
+                  <td>
+                    @if (user.localityId) {
+                      {{
+                        localities.localityName(user.localityId) || 'Localité n°' + user.localityId
+                      }}
+                    } @else if (user.requestedLocality) {
+                      <span class="admin-table__subtext"
+                        >Demandée : {{ user.requestedLocality }}</span
+                      >
+                    } @else {
+                      <span class="admin-table__subtext">Pas encore choisie</span>
+                    }
+                  </td>
                   <td>
                     @if (user.role === 'client' || user.ticketsCount > 0) {
                       <strong>{{ user.ticketsCount }}</strong> ticket(s)
@@ -290,6 +303,7 @@ import { AdminConfirmService } from '../../services/admin-confirm.service';
 })
 export class AdminUsersPage implements OnInit {
   protected readonly data = inject(AdminDataService);
+  protected readonly localities = inject(AdminLocalitiesService);
   private readonly confirmService = inject(AdminConfirmService);
 
   protected searchQuery = '';
@@ -310,6 +324,7 @@ export class AdminUsersPage implements OnInit {
   ngOnInit(): void {
     this.data.loadUsers();
     this.data.loadRelatives();
+    this.localities.ensureLocalities();
   }
 
   protected readonly filteredUsers = computed(() => {

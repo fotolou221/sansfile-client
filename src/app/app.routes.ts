@@ -46,6 +46,9 @@ import { AdminMonitoringPage } from './features/admin/pages/monitoring/admin-mon
 import { adminAuthGuard } from './features/admin/services/admin-auth.service';
 import { AdminAgentsPage } from './features/admin/pages/agents/admin-agents-page';
 import { AdminAgentActivityPage } from './features/admin/pages/agents/admin-agent-activity-page';
+import { AdminLocalitiesPage } from './features/admin/pages/localities/admin-localities-page';
+import { AdminPartnersPage } from './features/admin/pages/partners/admin-partners-page';
+import { AdminPartnerDetailPage } from './features/admin/pages/partners/admin-partner-detail-page';
 import { AgentLoginPage } from './features/agent/pages/login/agent-login-page';
 import { AgentLayoutComponent } from './features/agent/layout/agent-layout';
 import { AgentHomePage } from './features/agent/pages/home/agent-home-page';
@@ -60,6 +63,8 @@ import {
 } from './features/agent/services/agent-auth.service';
 import { MaintenancePage } from './features/maintenance/maintenance-page';
 import { maintenanceGuard } from './core/guards/maintenance.guard';
+import { localityChosenGuard } from './core/guards/locality.guard';
+import { ChooseLocalityPage } from './features/locality/choose-locality-page';
 import {
   clientAuthGuard,
   coiffeurAuthGuard,
@@ -76,6 +81,8 @@ const APP_ROUTES: Routes = [
   { path: 'onboarding', component: OnboardingPage },
   { path: 'auth/login', component: LoginPage, canActivate: [guestOnlyAuthGuard] },
   { path: 'auth/code', component: OtpPage, canActivate: [guestOnlyAuthGuard] },
+  // Choix de la localité (imposé après connexion tant qu'il n'est pas fait, puis depuis le profil)
+  { path: 'ma-localite', component: ChooseLocalityPage, canActivate: [shopAuthGuard] },
 
   // ── Client Routes (Protected) ─────────────────────────────
   { path: 'client/home', component: ClientHomePage, canActivate: [clientAuthGuard] },
@@ -186,6 +193,9 @@ const APP_ROUTES: Routes = [
       { path: 'utilisateurs', component: AdminUsersPage },
       { path: 'agents', component: AdminAgentsPage },
       { path: 'agents/journal', component: AdminAgentActivityPage },
+      { path: 'localites', component: AdminLocalitiesPage },
+      { path: 'partenaires', component: AdminPartnersPage },
+      { path: 'partenaires/:id', component: AdminPartnerDetailPage },
       { path: 'supervision', component: AdminMonitoringPage },
       { path: 'settings', component: AdminSettingsPage },
     ],
@@ -199,9 +209,21 @@ const APP_ROUTES: Routes = [
 /** Restent ouvertes pendant la maintenance (cf. isOpenDuringMaintenance) ; les redirections suivent leur cible. */
 const OPEN_DURING_MAINTENANCE = new Set(['', 'vitrine', 'maintenance', 'admin', 'admin/login']);
 
+/** Espace client, boutique et espace coiffeur : la localité du compte doit être choisie. */
+function needsLocality(path: string | undefined): boolean {
+  return !!path && (path.startsWith('client/') || path.startsWith('coiffeur/'));
+}
+
 /** Toute autre page (application client, coiffeur, connexion…) affiche la page de maintenance. */
-export const routes: Routes = APP_ROUTES.map((route) =>
-  route.redirectTo !== undefined || OPEN_DURING_MAINTENANCE.has(route.path ?? '')
-    ? route
-    : { ...route, canActivate: [maintenanceGuard, ...(route.canActivate ?? [])] },
-);
+export const routes: Routes = APP_ROUTES.map((route) => {
+  if (route.redirectTo !== undefined) {
+    return route;
+  }
+  const guards = [
+    ...(route.canActivate ?? []),
+    ...(needsLocality(route.path) ? [localityChosenGuard] : []),
+  ];
+  return OPEN_DURING_MAINTENANCE.has(route.path ?? '')
+    ? { ...route, canActivate: guards }
+    : { ...route, canActivate: [maintenanceGuard, ...guards] };
+});

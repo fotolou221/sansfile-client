@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ClientLayout } from '../../../shared/components/client-layout/client-layout';
 import { LocationHeader } from '../../../shared/components/location-header/location-header';
+import { LocalityMenuItem } from '../../../shared/components/locality-menu-item/locality-menu-item';
 import { StatCard } from '../../../shared/components/stat-card/stat-card';
 import { ConfirmModal } from '../../../shared/components/confirm-modal/confirm-modal';
 import { TicketService } from '../../../shared/services/ticket.service';
@@ -15,7 +16,7 @@ import { API_CONFIG } from '../../../core/config/api.config';
 
 @Component({
   selector: 'app-client-profile-page',
-  imports: [ClientLayout, LocationHeader, StatCard, ConfirmModal, FormsModule],
+  imports: [ClientLayout, LocationHeader, StatCard, ConfirmModal, FormsModule, LocalityMenuItem],
   template: `
     <app-client-layout activeNav="profile" role="client" [hasHeaderSlot]="true">
       <!-- Fixed Header -->
@@ -172,6 +173,11 @@ import { API_CONFIG } from '../../../core/config/api.config';
 
         <!-- Menu Items -->
         <nav class="profile-page__menu" aria-label="Menu profil">
+          <!-- Ma localité -->
+          <app-locality-menu-item />
+
+          <div class="profile-page__divider"></div>
+
           <!-- Mes Salons Favoris -->
           <button type="button" class="profile-page__menu-item" (click)="goToFavorites()">
             <span class="profile-page__menu-icon">

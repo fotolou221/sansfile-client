@@ -19,6 +19,7 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { ProductService } from '../../../shared/services/product.service';
 import { CartService } from '../../../shared/services/cart.service';
 import { NotificationService } from '../../../shared/services/notification.service';
+import { LocalityService } from '../../../shared/services/locality.service';
 
 @Component({
   selector: 'app-shop-page',
@@ -91,96 +92,107 @@ import { NotificationService } from '../../../shared/services/notification.servi
 
       <!-- Main Content -->
       <div class="shop-page__content">
-        <!-- Search Input -->
-        <div class="shop-page__search">
-          <app-search-bar
-            placeholder="Rechercher un produit, marque..."
-            [value]="productService.searchQuery()"
-            (valueChange)="productService.searchQuery.set($event)"
+        <!-- La boutique montre ce que le partenaire de la localité du compte a en stock -->
+        @if (shopClosedMessage(); as closed) {
+          <app-empty-state
+            icon="shop"
+            [title]="closed.title"
+            [description]="closed.description"
+            [actionLabel]="closed.action"
+            (action)="changeAccountLocality()"
           />
-        </div>
+        } @else {
+          <!-- Search Input -->
+          <div class="shop-page__search">
+            <app-search-bar
+              placeholder="Rechercher un produit, marque..."
+              [value]="productService.searchQuery()"
+              (valueChange)="productService.searchQuery.set($event)"
+            />
+          </div>
 
-        <!-- Categories Section -->
-        @if (productService.categories().length > 0) {
-          <section class="shop-page__categories-section">
-            <h2 class="shop-page__section-title">Catégories</h2>
-            <div class="shop-page__categories-scroll">
-              @for (cat of productService.categories(); track cat.id) {
+          <!-- Categories Section -->
+          @if (productService.categories().length > 0) {
+            <section class="shop-page__categories-section">
+              <h2 class="shop-page__section-title">Catégories</h2>
+              <div class="shop-page__categories-scroll">
+                @for (cat of productService.categories(); track cat.id) {
+                  <button
+                    type="button"
+                    class="shop-page__category-item"
+                    [class.shop-page__category-item--active]="
+                      productService.selectedCategory() === cat.id
+                    "
+                    (click)="productService.toggleCategory(cat.id)"
+                    [title]="cat.name"
+                  >
+                    <div class="shop-page__category-thumb">
+                      <img [src]="cat.image" [alt]="cat.name" loading="lazy" />
+                    </div>
+                    <span class="shop-page__category-name" [title]="cat.name">{{ cat.name }}</span>
+                  </button>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- Products Grid Section -->
+          <section class="shop-page__products-section">
+            <div class="shop-page__section-header">
+              <h2 class="shop-page__section-title">Produits disponibles</h2>
+              @if (productService.selectedCategory()) {
                 <button
                   type="button"
-                  class="shop-page__category-item"
-                  [class.shop-page__category-item--active]="
-                    productService.selectedCategory() === cat.id
-                  "
-                  (click)="productService.toggleCategory(cat.id)"
-                  [title]="cat.name"
+                  class="shop-page__reset-filter"
+                  (click)="productService.selectedCategory.set(null)"
                 >
-                  <div class="shop-page__category-thumb">
-                    <img [src]="cat.image" [alt]="cat.name" loading="lazy" />
-                  </div>
-                  <span class="shop-page__category-name" [title]="cat.name">{{ cat.name }}</span>
+                  Réinitialiser le filtre
                 </button>
               }
             </div>
-          </section>
-        }
 
-        <!-- Products Grid Section -->
-        <section class="shop-page__products-section">
-          <div class="shop-page__section-header">
-            <h2 class="shop-page__section-title">Produits disponibles</h2>
-            @if (productService.selectedCategory()) {
-              <button
-                type="button"
-                class="shop-page__reset-filter"
-                (click)="productService.selectedCategory.set(null)"
-              >
-                Réinitialiser le filtre
-              </button>
-            }
-          </div>
-
-          @if (productService.loading()) {
-            <app-skeleton-loader type="product" [count]="6" />
-          } @else if (productService.error()) {
-            <app-error-state
-              [message]="productService.error()!"
-              (retry)="productService.loadAll()"
-            />
-          } @else {
-            <div class="shop-page__products-grid">
-              @for (product of displayedProducts(); track product.id) {
-                <app-product-card [product]="product" />
-              }
-            </div>
-
-            @if (productService.filteredProducts().length === 0) {
-              <app-empty-state
-                icon="shop"
-                [title]="emptyTitle()"
-                [description]="emptyDescription()"
-                [actionLabel]="emptyActionLabel()"
-                (action)="resetFilters()"
+            @if (productService.loading()) {
+              <app-skeleton-loader type="product" [count]="6" />
+            } @else if (productService.error()) {
+              <app-error-state
+                [message]="productService.error()!"
+                (retry)="productService.loadAll()"
               />
-            }
-
-            <!-- Bottom Infinite Scroll Sentinel & Indicator -->
-            @if (displayedProducts().length > 0) {
-              <div #scrollSentinel class="shop-page__sentinel">
-                @if (loadingMore()) {
-                  <div class="shop-page__loading-more">
-                    <div class="shop-page__spinner"></div>
-                    <span>Chargement d'autres produits…</span>
-                  </div>
-                } @else if (!hasMoreToLoad()) {
-                  <div class="shop-page__end-message">
-                    <span>✨ Vous avez vu tous les produits disponibles</span>
-                  </div>
+            } @else {
+              <div class="shop-page__products-grid">
+                @for (product of displayedProducts(); track product.id) {
+                  <app-product-card [product]="product" />
                 }
               </div>
+
+              @if (productService.filteredProducts().length === 0) {
+                <app-empty-state
+                  icon="shop"
+                  [title]="emptyTitle()"
+                  [description]="emptyDescription()"
+                  [actionLabel]="emptyActionLabel()"
+                  (action)="resetFilters()"
+                />
+              }
+
+              <!-- Bottom Infinite Scroll Sentinel & Indicator -->
+              @if (displayedProducts().length > 0) {
+                <div #scrollSentinel class="shop-page__sentinel">
+                  @if (loadingMore()) {
+                    <div class="shop-page__loading-more">
+                      <div class="shop-page__spinner"></div>
+                      <span>Chargement d'autres produits…</span>
+                    </div>
+                  } @else if (!hasMoreToLoad()) {
+                    <div class="shop-page__end-message">
+                      <span>✨ Vous avez vu tous les produits disponibles</span>
+                    </div>
+                  }
+                </div>
+              }
             }
-          }
-        </section>
+          </section>
+        }
       </div>
     </app-client-layout>
   `,
@@ -191,6 +203,7 @@ export class ShopPage implements AfterViewInit, OnDestroy {
   protected readonly productService = inject(ProductService);
   protected readonly cartService = inject(CartService);
   protected readonly notificationService = inject(NotificationService);
+  protected readonly localityService = inject(LocalityService);
 
   @ViewChild('scrollSentinel') sentinelRef?: ElementRef<HTMLDivElement>;
   private observer?: IntersectionObserver;
@@ -211,10 +224,15 @@ export class ShopPage implements AfterViewInit, OnDestroy {
   });
 
   constructor() {
+    void this.localityService.loadLocalities(true);
+    if (!this.localityService.account()) {
+      void this.localityService.loadAccount();
+    }
     effect(() => {
-      // Watch search or category filter changes to reset limit to 10
+      // Watch search, category or delivery locality changes to reset limit to 10
       this.productService.searchQuery();
       this.productService.selectedCategory();
+      this.localityService.shopLocalityId();
       this.displayedLimit.set(this.pageSize);
     });
   }
@@ -272,6 +290,45 @@ export class ShopPage implements AfterViewInit, OnDestroy {
         this.observer.observe(this.sentinelRef.nativeElement);
       }
     }, 300);
+  }
+
+  /** Boutique fermée : compte sans localité, ou pas de partenaire dans sa localité. */
+  protected readonly shopClosedMessage = computed<{
+    title: string;
+    description: string;
+    action?: string;
+  } | null>(() => {
+    const localityId = this.localityService.shopLocalityId();
+    if (localityId === null) {
+      const requested = this.localityService.account()?.requestedLocality;
+      return requested
+        ? {
+            title: `La boutique n'est pas encore disponible à ${requested}`,
+            description: 'Elle ouvrira dès qu’un partenaire SansFile y sera installé.',
+            action: 'Changer ma localité',
+          }
+        : {
+            title: 'Choisissez votre localité',
+            description: 'La boutique vous montre les produits livrables dans votre localité.',
+            action: 'Choisir ma localité',
+          };
+    }
+    const locality = this.localityService.shopLocality();
+    if (locality && !locality.shopAvailable) {
+      return {
+        title: `La boutique n'est pas encore disponible à ${locality.name}`,
+        description:
+          'Elle ouvrira dès qu’un partenaire SansFile y sera installé. Revenez bientôt !',
+      };
+    }
+    return null;
+  });
+
+  /** La boutique suit la localité du compte : en changer passe par « Ma localité ». */
+  protected changeAccountLocality(): void {
+    void this.router.navigate(['/ma-localite'], {
+      queryParams: { changer: 1, redirect: '/client/boutique' },
+    });
   }
 
   protected readonly emptyTitle = computed(() => {

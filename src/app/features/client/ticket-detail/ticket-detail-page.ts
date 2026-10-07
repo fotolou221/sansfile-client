@@ -8,6 +8,7 @@ import { ConfirmModal } from '../../../shared/components/confirm-modal/confirm-m
 import { SkeletonLoaderComponent } from '../../../shared/components/skeleton-loader/skeleton-loader.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { TicketService } from '../../../shared/services/ticket.service';
+import { SalonService } from '../../../shared/services/salon.service';
 import { Ticket } from '../../../shared/models/ticket';
 import { AuthSessionService } from '../../auth/auth-session.service';
 
@@ -54,7 +55,12 @@ import { AuthSessionService } from '../../auth/auth-session.service';
             </span>
 
             <h1>Ticket pour: {{ displayOwnerName }}</h1>
-            <p class="ticket-detail-page__salon-line">{{ ticket.salonName }} &bull; Dakar</p>
+            <p class="ticket-detail-page__salon-line">
+              {{ ticket.salonName }}
+              @if (salonPlace(ticket); as place) {
+                &bull; {{ place }}
+              }
+            </p>
 
             @if (formattedCreatedAt) {
               <div class="ticket-detail-page__timestamp-badge">
@@ -329,6 +335,21 @@ export class TicketDetailPage implements OnInit {
   private readonly router = inject(Router);
   private readonly ticketService = inject(TicketService);
   private readonly auth = inject(AuthSessionService);
+  private readonly salonService = inject(SalonService);
+
+  /** Localité (ou quartier) du salon du ticket, au lieu d’un « Dakar » fixe. */
+  protected salonPlace(ticket: Ticket): string | null {
+    const salon = this.salonService
+      .salons()
+      .find(
+        (s) =>
+          s.id === ticket.salonId ||
+          s.slug === ticket.salonId ||
+          s.numericId?.toString() === ticket.salonId ||
+          s.name === ticket.salonName,
+      );
+    return salon ? this.salonService.localityNameOf(salon) || salon.district || null : null;
+  }
 
   protected ticket: Ticket | null = null;
   protected readonly loading = signal(true);

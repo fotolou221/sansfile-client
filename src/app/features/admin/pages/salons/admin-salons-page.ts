@@ -13,6 +13,8 @@ import { QrCode } from '../../../../shared/components/qr-code/qr-code';
 import { Salon } from '../../../../shared/models/salon';
 import { AdminConfirmService } from '../../services/admin-confirm.service';
 import { AdminAgentsService } from '../../services/admin-agents.service';
+import { AdminLocalitiesService } from '../../services/admin-localities.service';
+import { ActivatedRoute } from '@angular/router';
 import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
 
 @Component({
@@ -52,15 +54,31 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
           </svg>
           <input
             type="text"
-            [(ngModel)]="searchQuery"
-            (ngModelChange)="currentPage.set(1)"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event); currentPage.set(1)"
             placeholder="Rechercher un salon par nom ou quartier..."
           />
         </div>
 
         <div class="admin-toolbar__right">
           <div class="admin-filter-group">
-            <select [(ngModel)]="statusFilter" (ngModelChange)="currentPage.set(1)">
+            <select
+              [ngModel]="localityFilter()"
+              (ngModelChange)="localityFilter.set($event); currentPage.set(1)"
+              aria-label="Filtrer par localité"
+            >
+              <option value="all">Toutes les localités</option>
+              <option value="none">Sans localité (à rattacher)</option>
+              @for (l of localities.localities(); track l.id) {
+                <option [value]="'' + l.id">{{ l.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="admin-filter-group">
+            <select
+              [ngModel]="statusFilter()"
+              (ngModelChange)="statusFilter.set($event); currentPage.set(1)"
+            >
               <option value="all">Tous les statuts</option>
               <option value="open">Ouvert</option>
               <option value="closed">Fermé</option>
@@ -79,7 +97,7 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
               <thead>
                 <tr>
                   <th class="salon-cell">Salon &amp; Coiffeur Propriétaire</th>
-                  <th>Quartier &bull; Ville</th>
+                  <th>Localité &bull; Quartier</th>
                   <th>Contact</th>
                   <th>Personnes en attente</th>
                   <th>Statut</th>
@@ -132,7 +150,25 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
                         </div>
                       </div>
                     </td>
-                    <td class="nowrap">{{ salon.district || salon.location }}</td>
+                    <td class="nowrap">
+                      @if (salon.localityId) {
+                        <app-admin-badge variant="info">{{
+                          salon.localityName || localities.localityName(salon.localityId)
+                        }}</app-admin-badge>
+                      } @else {
+                        <select
+                          class="locality-quick-select"
+                          aria-label="Rattacher le salon à une localité"
+                          (change)="assignLocality(salon, $event)"
+                        >
+                          <option value="">À rattacher…</option>
+                          @for (l of localities.activeLocalities(); track l.id) {
+                            <option [value]="l.id">{{ l.name }}</option>
+                          }
+                        </select>
+                      }
+                      <div class="admin-table__subtext">{{ salon.district || salon.location }}</div>
+                    </td>
                     <td class="nowrap">{{ salon.phone || '+221 77 000 00 00' }}</td>
                     <td class="nowrap">
                       <span class="admin-badge admin-badge--primary"
@@ -283,7 +319,13 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
                   >
                 </div>
                 <div class="admin-grid-card__meta">
-                  <span>{{ salon.district || salon.location }}</span>
+                  <span>{{
+                    (salon.localityName ||
+                      localities.localityName(salon.localityId) ||
+                      'Sans localité') +
+                      ' · ' +
+                      (salon.district || salon.location)
+                  }}</span>
                   <span><strong>Propriétaire :</strong> {{ salon.ownerName || 'Coiffeur' }}</span>
                   <span>
                     <strong>Inscrit par :</strong>
@@ -560,6 +602,30 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
               <div class="step-title-box">
                 <h3>Établissement &amp; Position GPS Réelle</h3>
                 <p>Nom, visuel et géolocalisation exacte du salon sur la carte.</p>
+              </div>
+
+              <div
+                class="admin-form__field"
+                [class.admin-form__field--error]="fieldErrors()['localityId']"
+              >
+                <label>Localité *</label>
+                <select
+                  [(ngModel)]="formLocalityId"
+                  name="localityId"
+                  (ngModelChange)="clearFieldError('localityId')"
+                >
+                  <option [ngValue]="null">— Choisir la localité du salon —</option>
+                  @for (l of localitiesForForm(); track l.id) {
+                    <option [ngValue]="l.id">{{ l.name }}</option>
+                  }
+                </select>
+                @if (fieldErrors()['localityId']) {
+                  <span class="admin-form__error">{{ fieldErrors()['localityId'] }}</span>
+                } @else if (localities.localities().length === 0) {
+                  <span class="admin-form__error"
+                    >Aucune localité : créez-les d'abord dans « Localités ».</span
+                  >
+                }
               </div>
 
               <div class="admin-form__row">
@@ -890,9 +956,34 @@ export class AdminSalonsPage {
   private readonly confirmService = inject(AdminConfirmService);
   protected readonly agents = inject(AdminAgentsService);
 
+  protected readonly localities = inject(AdminLocalitiesService);
+  private readonly route = inject(ActivatedRoute);
+
   constructor() {
     // Noms des agents de terrain, pour « Inscrit par » (liste vide : rien ne s'affiche de plus)
     this.agents.load().subscribe({ error: () => undefined });
+    this.localities.ensureLocalities();
+    // Lien « salons sans localité » de la page Localités
+    if (this.route.snapshot.queryParamMap.get('localite') === 'aucune') {
+      this.localityFilter.set('none');
+    }
+  }
+
+  /** Localités proposées dans le formulaire : actives, plus celle du salon modifié. */
+  protected readonly localitiesForForm = computed(() =>
+    this.localities.localities().filter((l) => l.active || l.id === this.editingLocalityId()),
+  );
+  private readonly editingLocalityId = signal<number | null>(null);
+
+  /** Rattachement rapide d'un salon sans localité, depuis la liste. */
+  protected assignLocality(salon: Salon, event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const localityId = Number(select.value);
+    if (!localityId) return;
+    this.data.updateSalon(salon.id, {
+      localityId,
+      localityName: this.localities.localityName(localityId),
+    });
   }
 
   /** Photos qui ne chargent pas : initiale du salon à la place de l'image cassée (une nouvelle photo est retentée). */
@@ -902,8 +993,10 @@ export class AdminSalonsPage {
     this.brokenThumbs.update((urls) => new Set(urls).add(url));
   }
 
-  protected searchQuery = '';
-  protected statusFilter = 'all';
+  protected readonly searchQuery = signal('');
+  protected readonly statusFilter = signal('all');
+  /** 'all', 'none' (sans localité) ou identifiant de localité. */
+  protected readonly localityFilter = signal<string>('all');
   protected viewMode: AdminViewMode = 'table';
 
   protected readonly currentPage = signal<number>(1);
@@ -946,6 +1039,8 @@ export class AdminSalonsPage {
   protected formStatus: 'open' | 'closed' = 'open';
   protected formWebsite = '';
 
+  protected formLocalityId: number | null = null;
+
   protected formLatitude: number | null = 14.716677;
   protected formLongitude: number | null = -17.467686;
   protected readonly isGpsLoading = signal<boolean>(false);
@@ -986,6 +1081,11 @@ export class AdminSalonsPage {
     delete errors['name'];
     delete errors['district'];
     delete errors['phone'];
+    delete errors['localityId'];
+
+    if (!this.formLocalityId) {
+      errors['localityId'] = 'Choisissez la localité du salon.';
+    }
 
     if (!this.formName.trim()) {
       errors['name'] = 'Le nom du salon est obligatoire.';
@@ -1005,7 +1105,7 @@ export class AdminSalonsPage {
     }
 
     this.fieldErrors.set(errors);
-    return !errors['name'] && !errors['district'] && !errors['phone'];
+    return !errors['name'] && !errors['district'] && !errors['phone'] && !errors['localityId'];
   }
 
   protected getOwnerFullName(): string {
@@ -1014,8 +1114,9 @@ export class AdminSalonsPage {
   }
 
   protected readonly filteredSalons = computed(() => {
-    const q = this.searchQuery.toLowerCase().trim();
-    const st = this.statusFilter;
+    const q = this.searchQuery().toLowerCase().trim();
+    const st = this.statusFilter();
+    const locality = this.localityFilter();
 
     return this.data.salons().filter((salon) => {
       const matchQuery =
@@ -1026,8 +1127,11 @@ export class AdminSalonsPage {
         (salon.ownerName && salon.ownerName.toLowerCase().includes(q));
 
       const matchStatus = st === 'all' || salon.status === st;
+      const matchLocality =
+        locality === 'all' ||
+        (locality === 'none' ? !salon.localityId : String(salon.localityId ?? '') === locality);
 
-      return matchQuery && matchStatus;
+      return matchQuery && matchStatus && matchLocality;
     });
   });
 
@@ -1177,6 +1281,8 @@ export class AdminSalonsPage {
     this.formOwnerAvatarUrl =
       'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
 
+    this.formLocalityId = null;
+    this.editingLocalityId.set(null);
     this.formName = '';
     this.formDistrict = 'Mermoz';
     this.formLocation = 'Route de Ouakam, Dakar, Sénégal';
@@ -1204,6 +1310,8 @@ export class AdminSalonsPage {
     this.formOwnerPhone = salon.phone || '';
     this.formOwnerAvatarUrl = salon.avatarUrl || '';
 
+    this.formLocalityId = salon.localityId ?? null;
+    this.editingLocalityId.set(salon.localityId ?? null);
     this.formName = salon.name;
     this.formDistrict = salon.district || '';
     this.formLocation = salon.location || '';
@@ -1233,6 +1341,8 @@ export class AdminSalonsPage {
 
     if (this.editingSalonId()) {
       this.data.updateSalon(this.editingSalonId()!, {
+        localityId: this.formLocalityId,
+        localityName: this.localities.localityName(this.formLocalityId),
         name: this.formName,
         district: this.formDistrict,
         location: this.formLocation,
@@ -1259,6 +1369,8 @@ export class AdminSalonsPage {
         : undefined;
       const newSalon: Salon = {
         id: slug || 'salon-' + Date.now(),
+        localityId: this.formLocalityId,
+        localityName: this.localities.localityName(this.formLocalityId),
         name: this.formName,
         district: this.formDistrict,
         location: this.formLocation,

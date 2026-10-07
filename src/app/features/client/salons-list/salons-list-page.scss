@@ -62,6 +62,27 @@
   font-weight: 500;
 }
 
+.salons-page__locality-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-card, #ffffff);
+  color: var(--primary, #1e5af0);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
 .salons-page__search-section {
   width: 100%;
   max-width: 100%;

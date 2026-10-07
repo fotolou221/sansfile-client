@@ -27,6 +27,11 @@ export class AgentDataService {
       .pipe(tap((list) => this.salons.set(list)));
   }
 
+  /** Tous les salons des localités de l'agent (y compris ceux inscrits par d'autres). */
+  zoneSalons(): Observable<AgentSalon[]> {
+    return this.http.get<AgentSalon[]>(`${this.baseUrl}/agent/zone-salons`);
+  }
+
   salon(id: number): Observable<AgentSalon> {
     return this.http.get<AgentSalon>(`${this.baseUrl}/salons/${id}`);
   }
@@ -49,6 +54,7 @@ export class AgentDataService {
   updateSalon(id: number, form: AgentSalonForm): Observable<AgentSalon> {
     return this.http.patch<AgentSalon>(`${this.baseUrl}/salons/${id}`, {
       id,
+      localityId: form.localityId,
       name: form.name.trim(),
       district: form.district.trim(),
       location: form.location.trim(),
@@ -75,6 +81,7 @@ export class AgentDataService {
 
   private postSalon(form: AgentSalonForm, slug: string): Observable<AgentSalon> {
     return this.http.post<AgentSalon>(`${this.baseUrl}/salons`, {
+      localityId: form.localityId,
       name: form.name.trim(),
       slug,
       ownerName: form.ownerName.trim(),

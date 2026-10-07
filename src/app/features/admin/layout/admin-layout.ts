@@ -122,6 +122,24 @@ import { PlatformSettingsService } from '../../../shared/services/platform-setti
           </a>
 
           <a
+            routerLink="/admin/localites"
+            routerLinkActive="active"
+            (click)="closeMobileSidebar()"
+            class="admin-nav-item"
+          >
+            <span class="admin-nav-item__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                <line x1="8" y1="2" x2="8" y2="18" />
+                <line x1="16" y1="6" x2="16" y2="22" />
+              </svg>
+            </span>
+            @if (!sidebarCollapsed()) {
+              <span class="admin-nav-item__label">Localités</span>
+            }
+          </a>
+
+          <a
             routerLink="/admin/tickets"
             routerLinkActive="active"
             (click)="closeMobileSidebar()"
@@ -175,6 +193,24 @@ import { PlatformSettingsService } from '../../../shared/services/platform-setti
             </span>
             @if (!sidebarCollapsed()) {
               <span class="admin-nav-item__label">Catégories Boutique</span>
+            }
+          </a>
+
+          <a
+            routerLink="/admin/partenaires"
+            routerLinkActive="active"
+            (click)="closeMobileSidebar()"
+            class="admin-nav-item"
+          >
+            <span class="admin-nav-item__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l1-5h16l1 5" />
+                <path d="M4 9v11h16V9" />
+                <path d="M9 20v-6h6v6" />
+              </svg>
+            </span>
+            @if (!sidebarCollapsed()) {
+              <span class="admin-nav-item__label">Partenaires Boutique</span>
             }
           </a>
 

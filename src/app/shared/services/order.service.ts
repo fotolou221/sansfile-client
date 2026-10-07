@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed, effect, untracked } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap, catchError, of, map, finalize } from 'rxjs';
-import { Order, OrderStatus, OrderType } from '../models/order';
+import { mapOrderSplit, Order, OrderQuote, OrderStatus, OrderType } from '../models/order';
 import { CartItem, Product } from '../models/product';
 import { API_CONFIG } from '../../core/config/api.config';
 import { AuthSessionService } from '../../features/auth/auth-session.service';
@@ -119,7 +119,15 @@ export class OrderService {
       deliveryDistrict: o.deliveryDistrict || undefined,
       notes: o.notes || undefined,
       whatsAppUrl: o.whatsAppUrl || undefined,
+      ...mapOrderSplit(o),
     };
+  }
+
+  /** Montants du panier dans la localité du compte : acompte à envoyer et part payée au livreur. */
+  quote(items: readonly CartItem[]): Observable<OrderQuote> {
+    return this.http.post<OrderQuote>(`${this.baseUrl}/orders/quote`, {
+      items: items.map((i) => ({ productId: Number(i.product.id) || 0, quantity: i.quantity })),
+    });
   }
 
   loadOrders(forceRefresh: boolean = false): void {
@@ -220,6 +228,8 @@ export class OrderService {
       customerName?: string;
       customerPhone?: string;
       notes?: string;
+      latitude?: number | null;
+      longitude?: number | null;
     },
   ): Observable<Order> {
     const payload = {
@@ -230,6 +240,8 @@ export class OrderService {
       customerName: delivery?.customerName || null,
       customerPhone: delivery?.customerPhone || null,
       notes: delivery?.notes || null,
+      latitude: delivery?.latitude ?? null,
+      longitude: delivery?.longitude ?? null,
     };
 
     return this.http.post<any>(`${this.baseUrl}/orders/checkout`, payload).pipe(
@@ -306,7 +318,11 @@ export class OrderService {
       )
       .join('\n');
 
-    const message = `Bonjour SansFile ! 🛍️\nJe souhaite confirmer ma commande n° *${order.orderNumber}* :\n\n${itemListText}\n\n*Sous-total :* ${order.subtotal.toLocaleString('fr-FR')} FCFA\n*Livraison :* ${order.deliveryFee.toLocaleString('fr-FR')} FCFA\n*TOTAL :* ${order.totalPrice.toLocaleString('fr-FR')} FCFA\n\nMerci de me confirmer la prise en charge de ma commande !`;
+    const split =
+      order.upfrontAmount !== undefined && order.partnerAmount !== undefined
+        ? `\n*À envoyer maintenant :* ${order.upfrontAmount.toLocaleString('fr-FR')} FCFA\n*À payer au livreur :* ${order.partnerAmount.toLocaleString('fr-FR')} FCFA`
+        : '';
+    const message = `Bonjour SansFile ! 🛍️\nJe souhaite confirmer ma commande n° *${order.orderNumber}* :\n\n${itemListText}\n\n*Sous-total :* ${order.subtotal.toLocaleString('fr-FR')} FCFA\n*Livraison :* ${order.deliveryFee.toLocaleString('fr-FR')} FCFA\n*TOTAL :* ${order.totalPrice.toLocaleString('fr-FR')} FCFA${split}\n\nMerci de me confirmer la prise en charge de ma commande !`;
     return `https://wa.me/${this.whatsappPhone}?text=${encodeURIComponent(message)}`;
   }
 

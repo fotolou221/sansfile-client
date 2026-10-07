@@ -1065,3 +1065,14 @@
     border-color: #334155;
   }
 }
+
+// Rattachement rapide d'un salon à une localité, depuis la liste
+.locality-quick-select {
+  max-width: 160px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px dashed var(--warning, #f59e0b);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, #0f172a);
+  font-size: 0.8125rem;
+}

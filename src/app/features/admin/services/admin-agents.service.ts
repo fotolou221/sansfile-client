@@ -15,6 +15,14 @@ export interface AdminAgent {
   salonsCount: number;
   lastLoginAt: string | null;
   createdDate: string | null;
+  /** Localités où l'agent peut exercer (aucune : il ne peut ni inscrire ni modifier de salon). */
+  localities: { id: number; name: string; active: boolean }[];
+}
+
+/** Résultat de l'affectation automatique d'après les localités des salons inscrits. */
+export interface AutoAssignResult {
+  agentsAssigned: number;
+  agentsStillWithout: number;
 }
 
 export interface AgentFormValue {
@@ -41,7 +49,8 @@ export type AgentActionType =
   | 'LOGOUT'
   | 'PASSWORD_CHANGED'
   | 'SALON_CREATED'
-  | 'SALON_UPDATED';
+  | 'SALON_UPDATED'
+  | 'LOCALITIES_UPDATED';
 
 export interface AgentActivity {
   id: number;
@@ -62,6 +71,7 @@ export interface AgentSalonSummary {
   name: string;
   slug: string;
   district: string;
+  localityName?: string | null;
   location: string;
   phone: string | null;
   ownerName: string | null;
@@ -81,6 +91,7 @@ export const AGENT_ACTION_LABELS: Record<AgentActionType, string> = {
   PASSWORD_CHANGED: 'Mot de passe changé',
   SALON_CREATED: 'Salon inscrit',
   SALON_UPDATED: 'Salon modifié',
+  LOCALITIES_UPDATED: 'Localités modifiées',
 };
 
 /** Couleur du badge d'une action dans le journal. */
@@ -187,6 +198,19 @@ export class AdminAgentsService {
 
   salonsOf(id: number): Observable<AgentSalonSummary[]> {
     return this.http.get<AgentSalonSummary[]>(`${this.baseUrl}/agents/${id}/salons`);
+  }
+
+  setLocalities(id: number, localityIds: number[]): Observable<AdminAgent> {
+    return this.http
+      .put<AdminAgent>(`${this.baseUrl}/agents/${id}/localities`, { localityIds })
+      .pipe(tap((agent) => this.replace(agent)));
+  }
+
+  /** Affecte les agents sans localité aux localités des salons qu'ils ont inscrits. */
+  autoAssignLocalities(): Observable<AutoAssignResult> {
+    return this.http
+      .post<AutoAssignResult>(`${this.baseUrl}/agents/auto-assign-localities`, {})
+      .pipe(tap(() => this.load().subscribe({ error: () => {} })));
   }
 
   activities(filters: {
