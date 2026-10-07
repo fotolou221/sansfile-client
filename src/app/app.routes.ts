@@ -12,6 +12,7 @@ import { RelativesPage } from './features/client/relatives/relatives-page';
 import { AddRelativePage } from './features/client/relatives/add-relative-page';
 import { EditRelativePage } from './features/client/relatives/edit-relative-page';
 import { ShopPage } from './features/client/shop/shop-page';
+import { AllProductsPage } from './features/client/shop/all-products-page';
 import { ProductDetailPage } from './features/client/shop/product-detail-page';
 import { CartPage } from './features/client/shop/cart-page';
 import { OrderConfirmationPage } from './features/client/shop/order-confirmation-page';
@@ -98,6 +99,11 @@ const APP_ROUTES: Routes = [
 
   // ── Boutique Routes (Accessible by Clients and Coiffeurs) ──
   { path: 'client/boutique', component: ShopPage, canActivate: [shopAuthGuard] },
+  {
+    path: 'client/boutique/catalogue',
+    component: AllProductsPage,
+    canActivate: [shopAuthGuard],
+  },
   {
     path: 'client/boutique/produits/:id',
     component: ProductDetailPage,

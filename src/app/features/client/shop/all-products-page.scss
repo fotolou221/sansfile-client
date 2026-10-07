@@ -1,0 +1,155 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+// ── En-tête : retour, titre, panier ───────────────────────────
+.catalog-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  app-page-header {
+    width: 100%;
+  }
+}
+
+.catalog-header__cart {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  z-index: 10;
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text-primary, #0f172a);
+  text-decoration: none;
+  transform: translateY(-50%);
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(30, 90, 240, 0.08);
+  }
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.catalog-header__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent, #f59e0b);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+// ── Contenu ───────────────────────────────────────────────────
+.catalog {
+  padding: 16px 16px 40px;
+
+  @media (min-width: 640px) {
+    padding: 24px 24px 50px;
+  }
+}
+
+.catalog__search {
+  margin-bottom: 14px;
+}
+
+.catalog__categories {
+  margin-bottom: 18px;
+}
+
+.catalog__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.875rem;
+
+  strong {
+    color: var(--text-primary, #0f172a);
+    font-weight: 800;
+  }
+}
+
+.catalog__reset {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--primary, #1e5af0);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.catalog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+  }
+}
+
+// ── Affichage progressif ──────────────────────────────────────
+.catalog__sentinel {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  margin: 24px 0 8px;
+}
+
+.catalog__loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 999px;
+  background: var(--bg-card, #ffffff);
+  color: var(--text-secondary, #64748b);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.catalog__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color, #e2e8f0);
+  border-top-color: var(--primary, #1e5af0);
+  border-radius: 50%;
+  animation: catalog-spin 0.6s linear infinite;
+}
+
+@keyframes catalog-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.catalog__end {
+  margin: 0;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+}

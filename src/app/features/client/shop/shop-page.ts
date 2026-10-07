@@ -1,14 +1,4 @@
-import {
-  Component,
-  inject,
-  computed,
-  signal,
-  effect,
-  ElementRef,
-  ViewChild,
-  AfterViewInit,
-  OnDestroy,
-} from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ClientLayout } from '../../../shared/components/client-layout/client-layout';
 import { SearchBar } from '../../../shared/components/search-bar/search-bar';
@@ -20,6 +10,7 @@ import { ProductService } from '../../../shared/services/product.service';
 import { CartService } from '../../../shared/services/cart.service';
 import { NotificationService } from '../../../shared/services/notification.service';
 import { LocalityService } from '../../../shared/services/locality.service';
+import { CategoryStrip } from '../../../shared/components/category-strip/category-strip';
 
 @Component({
   selector: 'app-shop-page',
@@ -31,6 +22,7 @@ import { LocalityService } from '../../../shared/services/locality.service';
     EmptyStateComponent,
     ErrorStateComponent,
     RouterLink,
+    CategoryStrip,
   ],
   template: `
     <app-client-layout activeNav="shop" [hasHeaderSlot]="true">
@@ -115,24 +107,11 @@ import { LocalityService } from '../../../shared/services/locality.service';
           @if (productService.categories().length > 0) {
             <section class="shop-page__categories-section">
               <h2 class="shop-page__section-title">Catégories</h2>
-              <div class="shop-page__categories-scroll">
-                @for (cat of productService.categories(); track cat.id) {
-                  <button
-                    type="button"
-                    class="shop-page__category-item"
-                    [class.shop-page__category-item--active]="
-                      productService.selectedCategory() === cat.id
-                    "
-                    (click)="productService.toggleCategory(cat.id)"
-                    [title]="cat.name"
-                  >
-                    <div class="shop-page__category-thumb">
-                      <img [src]="cat.image" [alt]="cat.name" loading="lazy" />
-                    </div>
-                    <span class="shop-page__category-name" [title]="cat.name">{{ cat.name }}</span>
-                  </button>
-                }
-              </div>
+              <app-category-strip
+                [categories]="productService.categories()"
+                [selected]="productService.selectedCategory()"
+                (toggle)="productService.toggleCategory($event)"
+              />
             </section>
           }
 
@@ -140,15 +119,33 @@ import { LocalityService } from '../../../shared/services/locality.service';
           <section class="shop-page__products-section">
             <div class="shop-page__section-header">
               <h2 class="shop-page__section-title">Produits disponibles</h2>
-              @if (productService.selectedCategory()) {
-                <button
-                  type="button"
-                  class="shop-page__reset-filter"
-                  (click)="productService.selectedCategory.set(null)"
-                >
-                  Réinitialiser le filtre
-                </button>
-              }
+              <div class="shop-page__section-actions">
+                @if (productService.selectedCategory()) {
+                  <button
+                    type="button"
+                    class="shop-page__reset-filter"
+                    (click)="productService.selectedCategory.set(null)"
+                  >
+                    Réinitialiser
+                  </button>
+                }
+                @if (!productService.loading() && allProducts().length > 0) {
+                  <a routerLink="/client/boutique/catalogue" class="shop-page__see-all">
+                    Voir tout
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </a>
+                }
+              </div>
             </div>
 
             @if (productService.loading()) {
@@ -175,20 +172,23 @@ import { LocalityService } from '../../../shared/services/locality.service';
                 />
               }
 
-              <!-- Bottom Infinite Scroll Sentinel & Indicator -->
-              @if (displayedProducts().length > 0) {
-                <div #scrollSentinel class="shop-page__sentinel">
-                  @if (loadingMore()) {
-                    <div class="shop-page__loading-more">
-                      <div class="shop-page__spinner"></div>
-                      <span>Chargement d'autres produits…</span>
-                    </div>
-                  } @else if (!hasMoreToLoad()) {
-                    <div class="shop-page__end-message">
-                      <span>✨ Vous avez vu tous les produits disponibles</span>
-                    </div>
-                  }
-                </div>
+              <!-- Aperçu limité : la suite sur « Tous les produits » -->
+              @if (hiddenCount() > 0) {
+                <a routerLink="/client/boutique/catalogue" class="shop-page__see-all-cta">
+                  Voir les {{ allProducts().length }} produits
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </a>
               }
             }
           </section>
@@ -198,98 +198,31 @@ import { LocalityService } from '../../../shared/services/locality.service';
   `,
   styleUrl: './shop-page.scss',
 })
-export class ShopPage implements AfterViewInit, OnDestroy {
+export class ShopPage {
   private readonly router = inject(Router);
   protected readonly productService = inject(ProductService);
   protected readonly cartService = inject(CartService);
   protected readonly notificationService = inject(NotificationService);
   protected readonly localityService = inject(LocalityService);
 
-  @ViewChild('scrollSentinel') sentinelRef?: ElementRef<HTMLDivElement>;
-  private observer?: IntersectionObserver;
-
-  // ── Infinite Scroll State (Lazy Load by 10) ─────────────────
-  protected readonly pageSize = 10;
-  protected readonly displayedLimit = signal<number>(10);
-  protected readonly loadingMore = signal<boolean>(false);
+  /** Accueil de la boutique : un aperçu, le reste sur la page « Tous les produits ». */
+  protected readonly previewSize = 10;
 
   protected readonly allProducts = computed(() => this.productService.filteredProducts());
 
-  protected readonly displayedProducts = computed(() => {
-    return this.allProducts().slice(0, this.displayedLimit());
-  });
+  protected readonly displayedProducts = computed(() =>
+    this.allProducts().slice(0, this.previewSize),
+  );
 
-  protected readonly hasMoreToLoad = computed(() => {
-    return this.displayedLimit() < this.allProducts().length;
-  });
+  protected readonly hiddenCount = computed(() =>
+    Math.max(0, this.allProducts().length - this.previewSize),
+  );
 
   constructor() {
     void this.localityService.loadLocalities(true);
     if (!this.localityService.account()) {
       void this.localityService.loadAccount();
     }
-    effect(() => {
-      // Watch search, category or delivery locality changes to reset limit to 10
-      this.productService.searchQuery();
-      this.productService.selectedCategory();
-      this.localityService.shopLocalityId();
-      this.displayedLimit.set(this.pageSize);
-    });
-  }
-
-  ngAfterViewInit(): void {
-    this.setupIntersectionObserver();
-    if (typeof window !== 'undefined') {
-      window.addEventListener('scroll', this.onWindowScroll, { passive: true });
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.observer?.disconnect();
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('scroll', this.onWindowScroll);
-    }
-  }
-
-  private setupIntersectionObserver(): void {
-    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
-    this.observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (entry?.isIntersecting && this.hasMoreToLoad() && !this.loadingMore()) {
-          this.loadMore();
-        }
-      },
-      { rootMargin: '200px' },
-    );
-
-    if (this.sentinelRef?.nativeElement) {
-      this.observer.observe(this.sentinelRef.nativeElement);
-    }
-  }
-
-  private readonly onWindowScroll = (): void => {
-    if (typeof window === 'undefined') return;
-    const scrollBottom =
-      document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
-    if (scrollBottom < 250 && this.hasMoreToLoad() && !this.loadingMore()) {
-      this.loadMore();
-    }
-  };
-
-  protected loadMore(): void {
-    if (!this.hasMoreToLoad() || this.loadingMore()) return;
-    this.loadingMore.set(true);
-
-    setTimeout(() => {
-      this.displayedLimit.update((prev) => prev + this.pageSize);
-      this.loadingMore.set(false);
-
-      if (this.sentinelRef?.nativeElement && this.observer) {
-        this.observer.disconnect();
-        this.observer.observe(this.sentinelRef.nativeElement);
-      }
-    }, 300);
   }
 
   /** Boutique fermée : compte sans localité, ou pas de partenaire dans sa localité. */

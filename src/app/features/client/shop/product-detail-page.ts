@@ -16,7 +16,7 @@ import { LocalityService } from '../../../shared/services/locality.service';
     <app-client-layout [showBottomNav]="false" [hasCustomFooter]="true">
       <!-- Fixed Header Slot -->
       <div slot="header" class="product-detail-header">
-        <app-page-header title="" backRoute="/client/boutique" />
+        <app-page-header title="" [backRoute]="backRoute" />
 
         <a
           routerLink="/client/boutique/panier"
@@ -167,6 +167,12 @@ export class ProductDetailPage implements OnInit {
   private readonly productService = inject(ProductService);
   protected readonly cartService = inject(CartService);
   protected readonly localityService = inject(LocalityService);
+
+  /** Retour vers « Tous les produits » si la fiche a été ouverte depuis cette page. */
+  protected readonly backRoute =
+    this.route.snapshot.queryParamMap.get('from') === 'catalogue'
+      ? '/client/boutique/catalogue'
+      : '/client/boutique';
 
   /** Le partenaire de la localité du compte a ce produit en stock. */
   protected readonly availableHere = computed(() => {

@@ -9,7 +9,11 @@ import { CartService } from '../../services/cart.service';
   template: `
     <div class="product-card">
       <!-- Image link -->
-      <a [routerLink]="['/client/boutique/produits', product.id]" class="product-card__image-wrap">
+      <a
+        [routerLink]="['/client/boutique/produits', product.id]"
+        [queryParams]="from ? { from } : null"
+        class="product-card__image-wrap"
+      >
         <img
           [src]="product.images[0]"
           [alt]="product.title"
@@ -30,7 +34,11 @@ import { CartService } from '../../services/cart.service';
       <!-- Title & Price with Compact Cart Icon Button on Right -->
       <div class="product-card__info-row">
         <div class="product-card__details">
-          <a [routerLink]="['/client/boutique/produits', product.id]" class="product-card__title">
+          <a
+            [routerLink]="['/client/boutique/produits', product.id]"
+            [queryParams]="from ? { from } : null"
+            class="product-card__title"
+          >
             {{ product.title }}
           </a>
 
@@ -69,6 +77,8 @@ import { CartService } from '../../services/cart.service';
 })
 export class ProductCard {
   @Input({ required: true }) product!: Product;
+  /** Page d'origine, pour que le retour de la fiche produit y ramène (ex. « catalogue »). */
+  @Input() from?: string;
 
   private readonly cartService = inject(CartService);
 
