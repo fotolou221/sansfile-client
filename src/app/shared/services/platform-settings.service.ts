@@ -10,7 +10,7 @@ interface PublicPlatformSettings {
 }
 
 const DEFAULT_SETTINGS: PublicPlatformSettings = {
-  contactEmail: 'contact@sansfile.sn',
+  contactEmail: 'contact@sansfile.com',
   contactPhone: '+221 77 862 70 52',
   maintenanceMode: false,
 };
