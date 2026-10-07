@@ -166,16 +166,19 @@ interface DraftLine {
                           Confirmer
                         </button>
                       }
-                      <select
-                        class="admin-order-status-select"
-                        [value]="order.status"
-                        (change)="onStatusChange(order.id, $event)"
-                      >
-                        <option value="en_attente">En attente</option>
-                        <option value="en_cours">En cours</option>
-                        <option value="livre">Marquer Livrée</option>
-                        <option value="annule">Annuler</option>
-                      </select>
+                      <!-- Livrée : statut définitif, plus de changement possible -->
+                      @if (order.status !== 'livre') {
+                        <select
+                          class="admin-order-status-select"
+                          [value]="order.status"
+                          (change)="onStatusChange(order.id, $event)"
+                        >
+                          <option value="en_attente">En attente</option>
+                          <option value="en_cours">En cours</option>
+                          <option value="livre">Marquer Livrée</option>
+                          <option value="annule">Annuler</option>
+                        </select>
+                      }
                     </div>
                   </td>
                 </tr>
@@ -744,6 +747,20 @@ export class AdminCommandesPage {
         message: 'Êtes-vous sûr de vouloir annuler cette commande client ?',
         confirmLabel: "Confirmer l'annulation",
         variant: 'danger',
+      });
+      if (!confirmed) {
+        if (order) select.value = order.status;
+        return;
+      }
+    }
+
+    if (newStatus === 'livre') {
+      const confirmed = await this.confirmService.confirm({
+        title: 'Commande livrée',
+        message:
+          'Marquer cette commande comme livrée ? Ce statut est définitif : il ne pourra plus être modifié.',
+        confirmLabel: 'Marquer livrée',
+        variant: 'warning',
       });
       if (!confirmed) {
         if (order) select.value = order.status;
