@@ -43,9 +43,9 @@ describe('MaintenancePage', () => {
     const fixture = setup('/client/home');
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
-    expect(text).toContain('Maintenance en cours');
-    expect(text).toContain('On améliore SansFile pour vous');
-    expect(text).toContain('Vos tickets, vos proches et votre compte sont bien conservés');
+    expect(text).toContain('On revient très vite');
+    expect(text).toContain('SansFile est en maintenance');
+    expect(text).toContain('Tes tickets et ton compte sont bien conservés');
     expect(text).toContain('+221 77 862 70 52');
     expect(navigateByUrl).not.toHaveBeenCalled();
     fixture.destroy();

@@ -1,14 +1,7 @@
+// Même univers que le hero de la vitrine : fond marine, aplats de la marque, aucun dégradé ni ombre.
+// Fond identique en thème clair et sombre (le thème sombre global ne fait qu'éclaircir des textes déjà clairs).
 :host {
   display: block;
-
-  --maintenance-amber: #f59e0b;
-  --maintenance-amber-text: #b45309;
-  --maintenance-green-text: #15803d;
-}
-
-:host-context(.dark-theme) {
-  --maintenance-amber-text: #fbbf24;
-  --maintenance-green-text: #4ade80;
 }
 
 .maintenance {
@@ -16,300 +9,188 @@
   display: grid;
   place-items: center;
   min-height: 100svh;
-  padding: 28px 16px;
+  padding: 40px 20px;
   overflow: hidden;
-  background: var(--bg-page, #f5f7fb);
+  background: #0b1b4d;
+  color: #ffffff;
+  font-family: var(--font-family, 'Plus Jakarta Sans', system-ui, sans-serif);
+  text-align: center;
 }
 
-// Halos décoratifs (couleurs translucides : lisibles en clair comme en sombre)
-.maintenance__glow {
+.maintenance__disc {
   position: absolute;
-  width: 420px;
-  height: 420px;
   border-radius: 50%;
-  filter: blur(70px);
   pointer-events: none;
 
-  &--primary {
-    top: -140px;
-    left: -120px;
-    background: rgba(30, 90, 240, 0.18);
+  &--mid {
+    top: -180px;
+    left: -160px;
+    width: 380px;
+    height: 380px;
+    background: #13297a;
   }
 
-  &--accent {
-    right: -140px;
-    bottom: -160px;
-    background: rgba(245, 158, 11, 0.16);
+  &--blue {
+    right: -170px;
+    bottom: -210px;
+    width: 440px;
+    height: 440px;
+    background: #1e5af0;
   }
 }
 
-.maintenance__card {
+.maintenance__content {
   position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  width: min(100%, 480px);
-  padding: 36px 28px 28px;
-  text-align: center;
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 28px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.1);
+  width: min(100%, 440px);
 }
 
 .maintenance__logo {
-  height: 34px;
   width: auto;
-
-  &--dark {
-    display: none;
-  }
+  height: 30px;
 }
 
-:host-context(.dark-theme) {
-  .maintenance__logo--light {
-    display: none;
-  }
-
-  .maintenance__logo--dark {
-    display: block;
-  }
-}
-
-// ── Illustration : clé + engrenages ─────────────────────────
-
-.maintenance__illustration {
-  position: relative;
-  width: 160px;
-  height: 124px;
-  margin: 6px 0 2px;
-}
-
-.maintenance__badge {
-  position: absolute;
-  inset: 0;
-  margin: auto;
+// Clé qui se balance dans un rond ambre
+.maintenance__icon {
   display: grid;
   place-items: center;
-  width: 80px;
-  height: 80px;
-  border-radius: 24px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #1e5af0, #3b82f6);
-  box-shadow: 0 14px 30px rgba(30, 90, 240, 0.35);
-  animation: float 3.2s ease-in-out infinite;
+  width: 100px;
+  height: 100px;
+  margin: 52px 0 30px;
+  border-radius: 50%;
+  background: #fbbf24;
+  color: #0b1b4d;
+  animation: maintenance-wobble 2.4s ease-in-out infinite;
 
   svg {
-    width: 40px;
-    height: 40px;
-  }
-}
-
-.maintenance__gear {
-  position: absolute;
-
-  &--big {
-    top: 0;
-    left: 4px;
-    width: 64px;
-    animation: spin 9s linear infinite;
-  }
-
-  &--small {
-    right: 8px;
-    bottom: 2px;
     width: 46px;
-    animation: spin 6s linear infinite reverse;
+    height: 46px;
   }
-}
-
-.maintenance__gear-teeth {
-  fill: none;
-  stroke: var(--maintenance-amber);
-  stroke-width: 12;
-  stroke-dasharray: 9 8.8;
-}
-
-.maintenance__gear-body {
-  fill: var(--maintenance-amber);
-}
-
-.maintenance__gear-hole {
-  fill: var(--bg-card, #ffffff);
-}
-
-// ── Textes ───────────────────────────────────────────────────
-
-.maintenance__pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: var(--maintenance-amber-text);
-  background: rgba(245, 158, 11, 0.14);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-}
-
-.maintenance__pill-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--maintenance-amber);
-  animation: pulse 1.8s ease-in-out infinite;
 }
 
 .maintenance__title {
-  margin: 0;
-  font-size: clamp(1.45rem, 5vw, 1.9rem);
-  font-weight: 900;
-  line-height: 1.2;
-  color: var(--text-primary, #0f172a);
+  margin: 0 0 16px;
+  font-size: clamp(2.2rem, 1.4rem + 4vw, 3rem);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+  color: #ffffff;
+}
+
+// « très vite. » en étiquette inclinée, comme « temps. » sur la vitrine
+.maintenance__title-tag {
+  display: inline-block;
+  padding: 0 0.16em 0.04em;
+  border-radius: 0.16em;
+  background: #fbbf24;
+  color: #0b1b4d;
+  white-space: nowrap;
+  transform: rotate(-3deg);
 }
 
 .maintenance__lead {
-  margin: 0;
-  max-width: 390px;
-  font-size: 0.95rem;
+  max-width: 380px;
+  margin: 0 0 32px;
+  font-size: 1.05rem;
   line-height: 1.6;
-  color: var(--text-secondary, #64748b);
+  color: #c9d4f2;
 }
-
-.maintenance__reassure {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-align: left;
-  color: var(--maintenance-green-text);
-  background: rgba(22, 163, 74, 0.1);
-
-  svg {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-  }
-}
-
-// ── Actions ──────────────────────────────────────────────────
 
 .maintenance__retry {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
-  max-width: 320px;
-  height: 50px;
-  margin-top: 6px;
-  border: none;
-  border-radius: 14px;
-  font-size: 0.95rem;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 32px;
+  border: 0;
+  border-radius: 999px;
+  background: #fbbf24;
+  color: #0b1b4d;
+  font: inherit;
+  font-size: 1rem;
   font-weight: 800;
-  color: #ffffff;
-  background: var(--primary, #1e5af0);
-  box-shadow: 0 10px 24px rgba(30, 90, 240, 0.3);
   cursor: pointer;
   transition:
-    transform 0.15s ease,
-    background 0.15s ease;
+    background-color 0.2s ease,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 19px;
+    height: 19px;
   }
 
   &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    background: var(--primary-hover, #1746c0);
+    background: #fcd34d;
+    transform: translateY(-2px);
   }
 
   &:disabled {
-    opacity: 0.75;
+    opacity: 0.8;
     cursor: wait;
   }
 }
 
 .maintenance__spin {
-  animation: spin 0.9s linear infinite;
+  animation: maintenance-spin 0.9s linear infinite;
 }
 
 .maintenance__auto {
-  max-width: 340px;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--text-secondary, #64748b);
+  margin-top: 14px;
+  font-size: 0.85rem;
+  color: #a9b6d8;
 }
 
+// Lien d'urgence en forme de ticket (bordure pointillée), comme l'invitation aux salons de la vitrine
 .maintenance__contact {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 14px;
-  width: 100%;
-  margin-top: 4px;
-  padding-top: 16px;
-  font-size: 0.82rem;
-  border-top: 1px solid var(--border-color, #e2e8f0);
-}
-
-.maintenance__contact-label {
-  color: var(--text-secondary, #64748b);
-}
-
-.maintenance__contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 44px;
+  padding: 11px 20px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: var(--primary, #1e5af0);
   text-decoration: none;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+
+  svg {
+    flex-shrink: 0;
+    width: 19px;
+    height: 19px;
+    color: #25d366;
+  }
 
   &:hover {
-    text-decoration: underline;
+    border-color: #fbbf24;
+    background: rgba(255, 255, 255, 0.06);
   }
 }
 
-:host-context(.dark-theme) .maintenance__contact-link {
-  color: #60a5fa;
+@keyframes maintenance-wobble {
+  0%,
+  100% {
+    transform: rotate(-10deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
 }
 
-@keyframes spin {
+@keyframes maintenance-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.45;
-    transform: scale(0.8);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .maintenance__badge,
-  .maintenance__gear,
-  .maintenance__pill-dot,
+  .maintenance__icon,
   .maintenance__spin {
     animation: none;
   }
