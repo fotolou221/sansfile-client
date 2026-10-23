@@ -1,0 +1,351 @@
+// Téléphone plat (mêmes cotes que les affiches : écran 390 × 844), mis à l'échelle avec `zoom`.
+// Design plat : aucune ombre, aucun dégradé.
+:host {
+  --phone-zoom: 0.64;
+  position: relative;
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
+  color: #0f172a;
+  font-family: var(--font-family, 'Plus Jakarta Sans', system-ui, sans-serif);
+
+  @media (min-width: 640px) {
+    --phone-zoom: 0.78;
+  }
+}
+
+.vitrine-device {
+  position: relative;
+  zoom: var(--phone-zoom);
+  width: 418px;
+  height: 872px;
+  border-radius: 66px;
+  background: #111317;
+  border: 3px solid #2c3039;
+}
+
+.vitrine-device__key {
+  position: absolute;
+  width: 5px;
+  border-radius: 3px;
+  background: #2c3039;
+
+  &--1 {
+    left: -6px;
+    top: 150px;
+    height: 34px;
+  }
+  &--2 {
+    left: -6px;
+    top: 210px;
+    height: 62px;
+  }
+  &--3 {
+    left: -6px;
+    top: 286px;
+    height: 62px;
+  }
+  &--4 {
+    right: -6px;
+    top: 230px;
+    height: 96px;
+  }
+}
+
+.vitrine-device__screen {
+  position: absolute;
+  inset: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 52px;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.vitrine-device__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+  height: 50px;
+  padding: 6px 30px 0 40px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.vitrine-device__status-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vitrine-device__island {
+  position: absolute;
+  top: 11px;
+  left: 50%;
+  width: 122px;
+  height: 35px;
+  margin-left: -61px;
+  border-radius: 20px;
+  background: #000000;
+}
+
+.vitrine-device__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  height: 54px;
+  border-bottom: 1px solid #e8ecf3;
+  font-size: 17px;
+  font-weight: 800;
+
+  app-vitrine-icon {
+    position: absolute;
+    left: 18px;
+    font-size: 24px;
+  }
+}
+
+.vitrine-device__tag {
+  margin-top: 24px;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #1e5af0;
+}
+
+.vitrine-device__name {
+  margin-top: 6px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+.vitrine-device__place {
+  margin-top: 6px;
+  font-size: 15.5px;
+  color: #64748b;
+}
+
+.vitrine-device__ring {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  margin-top: 26px;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.vitrine-device__ring-progress {
+  stroke: #0d9488;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vitrine-device__ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.vitrine-device__ring-number {
+  font-size: 66px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.vitrine-device__stats {
+  display: flex;
+  gap: 14px;
+  align-self: stretch;
+  margin: 26px 20px 0;
+}
+
+.vitrine-device__stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  height: 100px;
+  padding: 16px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+}
+
+.vitrine-device__stat-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  color: #64748b;
+}
+
+.vitrine-device__stat-value {
+  margin-top: 10px;
+  font-size: 29px;
+  font-weight: 800;
+  animation: vitrine-device-tick 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes vitrine-device-tick {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.vitrine-device__open {
+  margin-top: 14px;
+  padding: 4px 12px;
+  border-radius: 7px;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.vitrine-device__notice {
+  display: flex;
+  gap: 14px;
+  align-self: stretch;
+  margin: 20px 20px 0;
+  padding: 15px 18px;
+  border: 1px solid #cdd9fb;
+  border-radius: 18px;
+  background: #eef2ff;
+  color: #2b56d6;
+  font-size: 14.5px;
+  line-height: 1.45;
+
+  app-vitrine-icon {
+    margin-top: 2px;
+    font-size: 22px;
+  }
+}
+
+.vitrine-device__strong {
+  font-weight: 800;
+}
+
+.vitrine-device__quit {
+  position: absolute;
+  right: 20px;
+  bottom: 34px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 56px;
+  border-radius: 28px;
+  background: #fde2e2;
+  color: #dc2626;
+  font-size: 17px;
+  font-weight: 800;
+
+  app-vitrine-icon {
+    font-size: 20px;
+  }
+}
+
+.vitrine-device__home {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 134px;
+  height: 5px;
+  margin-left: -67px;
+  border-radius: 3px;
+  background: #111111;
+}
+
+// ── Bulle « SMS reçu » ────────────────────────────────────────
+// Posée sur le rappel « Un SMS sera envoyé… » (à 580 px du haut, avant mise à l'échelle), sous le numéro
+// en cours qui reste visible ; plus large que le téléphone, comme sur les affiches.
+.vitrine-sms {
+  position: absolute;
+  top: calc(580px * var(--phone-zoom) - 4px);
+  right: -20px;
+  left: -20px;
+  padding: 14px 16px 16px;
+  border: 3px solid #fbbf24;
+  border-radius: 22px;
+  background: #ffffff;
+  color: #0f172a;
+  opacity: 0;
+  transform: translateY(16px) rotate(-2deg) scale(0.96);
+  transition:
+    opacity 0.35s ease,
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &--visible {
+    opacity: 1;
+    transform: rotate(-2deg);
+  }
+
+  @media (min-width: 640px) {
+    right: -36px;
+    left: -64px;
+  }
+}
+
+.vitrine-sms__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.vitrine-sms__app {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #2fbf4f;
+  color: #ffffff;
+  font-size: 19px;
+}
+
+.vitrine-sms__title {
+  font-weight: 800;
+}
+
+.vitrine-sms__time {
+  margin-left: auto;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.vitrine-sms__bubble {
+  margin-top: 10px;
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: #eef0f4;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vitrine-device__ring-progress,
+  .vitrine-sms {
+    transition: none;
+  }
+
+  .vitrine-device__stat-value {
+    animation: none;
+  }
+}

@@ -15,16 +15,6 @@ export interface PublicStats {
   totalOrders?: number;
 }
 
-export const DEFAULT_VITRINE_STATS: PublicStats = {
-  activeUsers: 10000,
-  activeUsersFormatted: '+10 000',
-  totalSalons: 500,
-  totalSalonsFormatted: '+500',
-  satisfactionRate: 98,
-  satisfactionRateFormatted: '98%',
-  serviceAvailability: '24/7',
-};
-
 @Injectable({
   providedIn: 'root',
 })
@@ -33,21 +23,14 @@ export class VitrineStatsService {
 
   /**
    * Récupère les métriques publiques réelles depuis le backend Spring Boot.
-   * En cas d'indisponibilité momentanée du serveur, retourne les valeurs de référence par défaut.
+   * Renvoie `null` si le serveur ne répond pas : la vitrine n'affiche alors aucun chiffre plutôt
+   * que des valeurs inventées.
    */
-  getPublicStats(): Observable<PublicStats> {
+  getPublicStats(): Observable<PublicStats | null> {
     return this.http.get<PublicStats>(`${API_CONFIG.baseUrl}/public/stats`).pipe(
       catchError((err) => {
-        // Fallback vers l'alias /vitrine/stats si nécessaire
-        return this.http.get<PublicStats>(`${API_CONFIG.baseUrl}/vitrine/stats`).pipe(
-          catchError((fallbackErr) => {
-            console.warn(
-              '[VitrineStatsService] Backend non disponible, utilisation des stats par défaut :',
-              fallbackErr,
-            );
-            return of(DEFAULT_VITRINE_STATS);
-          }),
-        );
+        console.warn('[VitrineStatsService] Statistiques publiques indisponibles :', err);
+        return of(null);
       }),
     );
   }
