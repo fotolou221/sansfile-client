@@ -63,6 +63,7 @@ import {
   agentPasswordChangedGuard,
 } from './features/agent/services/agent-auth.service';
 import { MaintenancePage } from './features/maintenance/maintenance-page';
+import { LegalPage } from './features/legal/legal-page';
 import { maintenanceGuard } from './core/guards/maintenance.guard';
 import { localityChosenGuard } from './core/guards/locality.guard';
 import { ChooseLocalityPage } from './features/locality/choose-locality-page';
@@ -77,6 +78,7 @@ const APP_ROUTES: Routes = [
   { path: '', component: VitrinePage },
   { path: 'vitrine', component: VitrinePage },
   { path: 'maintenance', component: MaintenancePage },
+  { path: 'informations-legales', component: LegalPage },
   { path: 'app', redirectTo: 'onboarding', pathMatch: 'full' },
   { path: 'login', redirectTo: 'auth/login', pathMatch: 'full' },
   { path: 'onboarding', component: OnboardingPage },
@@ -213,7 +215,14 @@ const APP_ROUTES: Routes = [
 ];
 
 /** Restent ouvertes pendant la maintenance (cf. isOpenDuringMaintenance) ; les redirections suivent leur cible. */
-const OPEN_DURING_MAINTENANCE = new Set(['', 'vitrine', 'maintenance', 'admin', 'admin/login']);
+const OPEN_DURING_MAINTENANCE = new Set([
+  '',
+  'vitrine',
+  'maintenance',
+  'informations-legales',
+  'admin',
+  'admin/login',
+]);
 
 /** Espace client, boutique et espace coiffeur : la localité du compte doit être choisie. */
 function needsLocality(path: string | undefined): boolean {

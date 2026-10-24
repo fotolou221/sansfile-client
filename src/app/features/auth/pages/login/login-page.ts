@@ -1,12 +1,12 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthActionButton } from '../../components/auth-action-button/auth-action-button';
 import { AuthShell } from '../../components/auth-shell/auth-shell';
 import { AuthSessionService, UserRole } from '../../auth-session.service';
 
 @Component({
   selector: 'app-login-page',
-  imports: [AuthActionButton, AuthShell],
+  imports: [AuthActionButton, AuthShell, RouterLink],
   template: `
     <app-auth-shell>
       <div class="login-page">
@@ -87,9 +87,9 @@ import { AuthSessionService, UserRole } from '../../auth-session.service';
           </app-auth-action-button>
           <p>
             En continuant, tu acceptes nos
-            <a href="#" aria-label="Conditions d'utilisation">Conditions d'utilisation</a>
+            <a routerLink="/informations-legales" fragment="conditions">Conditions d'utilisation</a>
             et notre
-            <a href="#" aria-label="Politique de confidentialit&eacute;"
+            <a routerLink="/informations-legales" fragment="confidentialite"
               >Politique de confidentialit&eacute;</a
             >.
           </p>

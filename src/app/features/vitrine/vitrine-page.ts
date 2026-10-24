@@ -505,6 +505,7 @@ const PARTNER_MESSAGE = 'Bonjour, je souhaite inscrire mon salon sur SansFile.';
               <a routerLink="/auth/login" [queryParams]="{ role: 'coiffeur' }">Espace coiffeur</a>
               <a href="#faq" (click)="scrollTo('faq', $event)">FAQ</a>
               <button type="button" (click)="triggerInstall()">Installer l’application</button>
+              <a routerLink="/informations-legales">Informations légales</a>
             </nav>
 
             <div class="vitrine-footer__contact">

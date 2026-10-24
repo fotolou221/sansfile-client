@@ -10,7 +10,7 @@ interface PublicPlatformSettings {
 }
 
 const DEFAULT_SETTINGS: PublicPlatformSettings = {
-  contactEmail: 'contact@sansfile.com',
+  contactEmail: 'bakarydiassy28@gmail.com',
   contactPhone: '+221 77 862 70 52',
   maintenanceMode: false,
 };

@@ -72,8 +72,9 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
       <div class="info-card">
         <strong>Connexion des agents :</strong>
         <a [href]="loginUrl" target="_blank" rel="noopener">{{ loginUrl }}</a> avec leur adresse
-        e-mail. À la création (ou après une réinitialisation), le mot de passe provisoire est
-        <code>{{ defaultPassword }}</code> : l'agent doit le remplacer à sa première connexion.
+        e-mail. À la création (ou après une réinitialisation), un mot de passe provisoire propre à
+        l'agent s'affiche une seule fois : transmettez-le-lui, il devra le remplacer à sa première
+        connexion.
       </div>
 
       <div class="admin-toolbar">
@@ -291,8 +292,8 @@ type StatusFilter = 'all' | 'active' | 'pending' | 'disabled';
           </div>
           @if (!editing()) {
             <p class="form-hint">
-              Le compte est créé avec le mot de passe provisoire <code>{{ defaultPassword }}</code
-              >. L'agent devra choisir le sien à sa première connexion.
+              Un mot de passe provisoire est généré et affiché après la création. L'agent devra
+              choisir le sien à sa première connexion.
             </p>
           } @else if (editing()!.email !== form.email.trim().toLowerCase()) {
             <p class="form-hint">
@@ -732,7 +733,6 @@ export class AdminAgentsPage implements OnInit {
   private readonly errorMessages = inject(HttpErrorMessageService);
 
   protected readonly loginUrl = `${resolveAppOrigin() || 'https://sansfile.com'}/agent/login`;
-  protected readonly defaultPassword = 'sansfile2026@';
 
   protected readonly searchQuery = signal('');
   protected readonly statusFilter = signal<StatusFilter>('all');
@@ -922,7 +922,7 @@ export class AdminAgentsPage implements OnInit {
   protected async resetPassword(agent: AdminAgent): Promise<void> {
     const ok = await this.confirmService.confirm({
       title: 'Réinitialiser le mot de passe',
-      message: `Le mot de passe de ${agent.firstName} ${agent.lastName} redeviendra « ${this.defaultPassword} ». Il devra en choisir un nouveau à sa prochaine connexion.`,
+      message: `Un nouveau mot de passe provisoire sera généré pour ${agent.firstName} ${agent.lastName}. Il devra en choisir un nouveau à sa prochaine connexion.`,
       confirmLabel: 'Réinitialiser',
       variant: 'warning',
     });

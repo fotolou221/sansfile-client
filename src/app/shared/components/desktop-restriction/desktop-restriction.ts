@@ -138,8 +138,10 @@ export class DesktopRestriction {
 
   private checkScreenSize(): void {
     if (!this.isBrowser) return;
-    // Considered desktop if screen width is 1024px or above
-    this.isDesktop.set(window.innerWidth >= 1024);
+    // Ordinateur = écran d'au moins 1024 px piloté à la souris. Une tablette (écran tactile), même tenue
+    // à l'horizontale au comptoir d'un salon, garde l'accès à l'application.
+    const touchFirst = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    this.isDesktop.set(window.innerWidth >= 1024 && !touchFirst);
   }
 
   protected isDesktopAppRoute(): boolean {
@@ -151,6 +153,7 @@ export class DesktopRestriction {
       url === '/' ||
       url === '/vitrine' ||
       url === '/maintenance' ||
+      url === '/informations-legales' ||
       url === '/admin' ||
       url.startsWith('/admin/') ||
       // Espace agent de terrain : responsive (téléphone, tablette ou ordinateur)

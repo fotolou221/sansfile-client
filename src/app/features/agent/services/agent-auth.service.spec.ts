@@ -48,12 +48,12 @@ describe('AgentAuthService', () => {
   });
 
   it('logs an agent in with e-mail and password, then loads the profile', async () => {
-    const result = firstValueFrom(service.login(' Awa@Terrain.sn ', 'sansfile2026@'));
+    const result = firstValueFrom(service.login(' Awa@Terrain.sn ', 'Provisoire7k'));
 
     const auth = httpMock.expectOne(`${API_CONFIG.baseUrl}/authenticate`);
     expect(auth.request.body).toEqual({
       username: 'awa@terrain.sn',
-      password: 'sansfile2026@',
+      password: 'Provisoire7k',
       rememberMe: true,
     });
     auth.flush({ id_token: fakeJwt('ROLE_USER ROLE_AGENT'), refresh_token: 'refresh' });
@@ -119,17 +119,17 @@ describe('AgentAuthService', () => {
   });
 
   it('clears the « change your password » obligation once the new password is saved', async () => {
-    const login = firstValueFrom(service.login('awa@terrain.sn', 'sansfile2026@'));
+    const login = firstValueFrom(service.login('awa@terrain.sn', 'Provisoire7k'));
     httpMock
       .expectOne(`${API_CONFIG.baseUrl}/authenticate`)
       .flush({ id_token: fakeJwt('ROLE_AGENT'), refresh_token: 'refresh' });
     httpMock.expectOne(`${API_CONFIG.baseUrl}/agent/me`).flush(PROFILE);
     await login;
 
-    const change = firstValueFrom(service.changePassword('sansfile2026@', 'Terrain2026!'));
+    const change = firstValueFrom(service.changePassword('Provisoire7k', 'Terrain2026!'));
     const req = httpMock.expectOne(`${API_CONFIG.baseUrl}/agent/password`);
     expect(req.request.body).toEqual({
-      currentPassword: 'sansfile2026@',
+      currentPassword: 'Provisoire7k',
       newPassword: 'Terrain2026!',
     });
     req.flush(null);

@@ -24,6 +24,14 @@ describe('DesktopRestriction', () => {
     expect(component['isDesktopAppRoute']()).toBe(false);
   });
 
+  it('should not block the legal information page', () => {
+    const fixture = TestBed.createComponent(DesktopRestriction);
+    const component = fixture.componentInstance;
+    component['isDesktop'].set(true);
+    component['currentUrl'].set('/informations-legales');
+    expect(component['isDesktopAppRoute']()).toBe(false);
+  });
+
   it('should block app routes on desktop', () => {
     const fixture = TestBed.createComponent(DesktopRestriction);
     const component = fixture.componentInstance;
