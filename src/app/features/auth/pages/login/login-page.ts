@@ -3,6 +3,14 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthActionButton } from '../../components/auth-action-button/auth-action-button';
 import { AuthShell } from '../../components/auth-shell/auth-shell';
 import { AuthSessionService, UserRole } from '../../auth-session.service';
+import {
+  PHONE_COUNTRIES,
+  PhoneCountry,
+  SENEGAL,
+  buildE164,
+  formatNational,
+  isNationalNumberValid,
+} from '../../../../shared/phone/phone-numbers';
 
 @Component({
   selector: 'app-login-page',
@@ -24,21 +32,25 @@ import { AuthSessionService, UserRole } from '../../auth-session.service';
         <div class="login-page__field-group">
           <label class="login-page__label" for="phone">T&eacute;l&eacute;phone</label>
           <div class="phone-field">
-            <button
-              class="phone-field__country"
-              type="button"
-              aria-label="Indicatif S&eacute;n&eacute;gal"
-            >
-              <span class="country-flag" aria-hidden="true">
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
-              <span>+221</span>
+            <!-- Liste native du téléphone pour choisir le pays ; le Sénégal est proposé par défaut -->
+            <label class="phone-field__country">
+              <span class="phone-field__flag" aria-hidden="true">{{ country().flag }}</span>
+              <span>+{{ country().dial }}</span>
               <svg viewBox="0 0 20 20" aria-hidden="true">
                 <path d="m6 8 4 4 4-4" />
               </svg>
-            </button>
+              <select
+                class="phone-field__select"
+                aria-label="Indicatif du pays"
+                (change)="selectCountry($event)"
+              >
+                @for (c of countries; track c.iso) {
+                  <option [value]="c.iso" [selected]="c.iso === country().iso">
+                    {{ c.flag }} {{ c.name }} (+{{ c.dial }})
+                  </option>
+                }
+              </select>
+            </label>
 
             <span class="phone-field__divider" aria-hidden="true"></span>
 
@@ -47,7 +59,7 @@ import { AuthSessionService, UserRole } from '../../auth-session.service';
               type="tel"
               inputmode="tel"
               autocomplete="tel"
-              placeholder="77 000 00 00"
+              [placeholder]="country().example"
               [value]="phoneNumber()"
               (input)="updatePhone($event)"
             />
@@ -117,32 +129,27 @@ export class LoginPage implements OnInit {
       redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : null;
   }
 
+  protected readonly countries = PHONE_COUNTRIES;
+  protected readonly country = signal<PhoneCountry>(SENEGAL);
   protected readonly phoneNumber = signal('');
   protected readonly errorMessage = signal('');
   protected readonly isSubmitting = signal(false);
 
-  protected readonly cleanDigits = computed(() => {
-    return this.phoneNumber().replace(/\D/g, '').replace(/^221/, '').slice(0, 9);
-  });
+  protected readonly isPhoneValid = computed(() =>
+    isNationalNumberValid(this.country(), this.phoneNumber()),
+  );
 
-  protected readonly isPhoneValid = computed(() => {
-    const digits = this.cleanDigits();
-    return digits.length === 9;
-  });
+  protected selectCountry(event: Event): void {
+    const iso = (event.target as HTMLSelectElement).value;
+    this.country.set(PHONE_COUNTRIES.find((c) => c.iso === iso) ?? SENEGAL);
+    this.phoneNumber.set('');
+    this.errorMessage.set('');
+    document.getElementById('phone')?.focus();
+  }
 
   protected updatePhone(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const digits = input.value.replace(/\D/g, '').replace(/^221/, '').slice(0, 9);
-    let formatted = digits;
-    if (digits.length > 2) {
-      formatted = `${digits.slice(0, 2)} ${digits.slice(2, 5)}`;
-      if (digits.length > 5) {
-        formatted += ` ${digits.slice(5, 7)}`;
-      }
-      if (digits.length > 7) {
-        formatted += ` ${digits.slice(7)}`;
-      }
-    }
+    const formatted = formatNational(this.country(), input.value);
     this.phoneNumber.set(formatted);
     input.value = formatted;
     this.errorMessage.set('');
@@ -151,7 +158,9 @@ export class LoginPage implements OnInit {
   protected async continueWithPhone(): Promise<void> {
     if (!this.isPhoneValid()) {
       this.errorMessage.set(
-        'Veuillez saisir un numéro de téléphone valide à 9 chiffres (ex: 77 123 45 67).',
+        this.country() === SENEGAL
+          ? 'Veuillez saisir un numéro mobile sénégalais à 9 chiffres (ex : 77 123 45 67).'
+          : `Veuillez saisir un numéro de téléphone valide (ex : ${this.country().example}).`,
       );
       return;
     }
@@ -161,7 +170,10 @@ export class LoginPage implements OnInit {
     this.errorMessage.set('');
 
     try {
-      await this.auth.startPhoneLogin(this.cleanDigits(), this.loginRole);
+      await this.auth.startPhoneLogin(
+        buildE164(this.country(), this.phoneNumber()),
+        this.loginRole,
+      );
       void this.router.navigate(['/auth/code'], {
         queryParams: this.redirectUrl ? { redirect: this.redirectUrl } : {},
       });

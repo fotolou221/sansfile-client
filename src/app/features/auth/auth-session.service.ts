@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { API_CONFIG } from '../../core/config/api.config';
 import { HttpErrorMessageService } from '../../shared/services/http-error-message.service';
+import { formatInternational, toE164 } from '../../shared/phone/phone-numbers';
 
 export type UserRole = 'client' | 'coiffeur';
 
@@ -77,18 +78,17 @@ export class AuthSessionService {
     return value === 'coiffeur' ? 'coiffeur' : 'client';
   }
 
+  /** `rawPhone` : numéro international (+33612345678) ou numéro sénégalais à 9 chiffres. */
   async startPhoneLogin(rawPhone: string, requestedRole?: UserRole): Promise<boolean> {
-    const digits = rawPhone.replace(/\D/g, '').replace(/^221/, '');
-    if (digits.length < 9) {
-      throw new Error('Veuillez entrer un numéro de téléphone valide à 9 chiffres.');
+    const cleanPhone = toE164(rawPhone);
+    if (!cleanPhone) {
+      throw new Error('Veuillez entrer un numéro de téléphone valide.');
     }
     const loginRole: UserRole = requestedRole ?? this.pendingLoginRoleSignal();
-    const formattedPhone = this.formatPhone(rawPhone);
-    this.pendingPhoneSignal.set(formattedPhone);
+    this.pendingPhoneSignal.set(formatInternational(cleanPhone));
     this.pendingLoginRoleSignal.set(loginRole);
     this.activeRoleSignal.set(loginRole);
 
-    const cleanPhone = `+221${digits.slice(-9)}`;
     try {
       await firstValueFrom(
         this.http.post(`${this.baseUrl}/auth/otp/send`, {
@@ -298,17 +298,16 @@ export class AuthSessionService {
     }
   }
 
+  /** Affichage d'un numéro : +221 77 123 45 67, +33 6 12 34 56 78… (anciennes saisies sans indicatif : Sénégal). */
   formatPhone(rawPhone: string): string {
     if (!rawPhone || !rawPhone.trim()) return '';
-    let digits = rawPhone.replace(/\D/g, '');
-    if (digits.startsWith('221') && digits.length > 9) {
-      digits = digits.substring(3);
+    const e164 = toE164(rawPhone);
+    if (e164) return formatInternational(e164);
+    const digits = rawPhone.replace(/\D/g, '');
+    if (!rawPhone.trim().startsWith('+') && digits.length >= 9) {
+      return formatInternational(`+221${digits.slice(-9)}`);
     }
-    digits = digits.slice(-9);
-    if (digits.length === 9) {
-      return `+221 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7)}`;
-    }
-    return rawPhone.startsWith('+') ? rawPhone : `+221 ${rawPhone.replace(/\s+/g, '')}`;
+    return rawPhone.trim();
   }
 
   private persistActiveRole(): void {
