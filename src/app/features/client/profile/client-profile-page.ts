@@ -12,6 +12,7 @@ import { NotificationService } from '../../../shared/services/notification.servi
 import { AuthSessionService } from '../../auth/auth-session.service';
 import { HttpErrorMessageService } from '../../../shared/services/http-error-message.service';
 import { API_CONFIG } from '../../../core/config/api.config';
+import { prepareImageForUpload } from '../../../shared/utils/image-upload';
 
 @Component({
   selector: 'app-client-profile-page',
@@ -78,7 +79,7 @@ import { API_CONFIG } from '../../../core/config/api.config';
             <input
               #fileInput
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/*"
               (change)="onPhotoSelected($event)"
               hidden
             />
@@ -447,45 +448,38 @@ export class ClientProfilePage implements OnInit {
     this.ticketService.loadTickets();
   }
 
+  /**
+   * Photo de profil : convertie en JPEG léger sur le téléphone (le HEIC des iPhone n'est pas accepté tel quel),
+   * envoyée, puis enregistrée sur le compte. Le succès n'est annoncé que si tout a réussi ; sinon l'ancienne
+   * photo revient avec l'erreur.
+   */
   protected async onPhotoSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     if (!input.files || !input.files[0]) return;
     const file = input.files[0];
+    const previous = this.avatarUrl();
 
-    // 1. Instant local preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      this.avatarUrl.set(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-
-    // 2. Upload file
     this.uploadingPhoto.set(true);
     this.profileError.set(null);
     this.photoSuccess.set(null);
+    let preview: string | null = null;
 
     try {
+      const photo = await prepareImageForUpload(file, 640);
+      preview = URL.createObjectURL(photo);
+      this.avatarUrl.set(preview);
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', photo);
       formData.append('folder', 'avatars');
+      const uploadRes = await firstValueFrom(
+        this.http.post<{ url?: string }>(`${API_CONFIG.baseUrl}/storage/upload`, formData),
+      );
+      const finalUrl = this.normalizeUrl(uploadRes?.url);
+      if (!finalUrl) throw new Error("La photo n'a pas pu être enregistrée. Réessayez.");
 
-      let finalUrl = this.avatarUrl();
-      try {
-        const uploadRes = await firstValueFrom(
-          this.http.post<any>(`${API_CONFIG.baseUrl}/storage/upload`, formData),
-        );
-        if (uploadRes && uploadRes.url) {
-          finalUrl = this.normalizeUrl(uploadRes.url);
-          this.avatarUrl.set(finalUrl);
-        }
-      } catch (uploadErr) {
-        console.warn(
-          '[ClientProfilePage] Upload storage backend non joignable, conservation aperçu local:',
-          uploadErr,
-        );
-      }
-
-      await this.auth.updateProfile({ avatarUrl: finalUrl || '' });
+      await this.auth.updateProfile({ avatarUrl: finalUrl });
+      this.avatarUrl.set(finalUrl);
       this.photoSuccess.set('Photo de profil mise à jour avec succès !');
       globalThis.setTimeout(() => this.photoSuccess.set(null), 3000);
 
@@ -493,6 +487,7 @@ export class ClientProfilePage implements OnInit {
       this.ticketService.loadTickets(true);
     } catch (err) {
       console.warn('Erreur téléversement avatar client:', err);
+      this.avatarUrl.set(previous);
       this.profileError.set(
         this.errorMessages.message(
           err,
@@ -500,6 +495,7 @@ export class ClientProfilePage implements OnInit {
         ),
       );
     } finally {
+      if (preview) URL.revokeObjectURL(preview);
       this.uploadingPhoto.set(false);
       input.value = '';
     }

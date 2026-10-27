@@ -221,7 +221,7 @@ type PhotoField = 'avatarUrl' | 'coverUrl';
                   }
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/*"
                     capture="environment"
                     (change)="onPhoto($event, photo.field)"
                     [disabled]="uploading() !== null"

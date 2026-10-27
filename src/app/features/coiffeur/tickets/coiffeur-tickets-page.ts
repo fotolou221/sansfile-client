@@ -10,6 +10,7 @@ import { AuthSessionService } from '../../auth/auth-session.service';
 import { FormsModule } from '@angular/forms';
 import { Ticket, compareTicketQueueOrder } from '../../../shared/models/ticket';
 import { HttpErrorMessageService } from '../../../shared/services/http-error-message.service';
+import { toE164 } from '../../../shared/phone/phone-numbers';
 
 @Component({
   selector: 'app-coiffeur-tickets-page',
@@ -394,12 +395,17 @@ import { HttpErrorMessageService } from '../../../shared/services/http-error-mes
             <input
               type="tel"
               [(ngModel)]="walkInPhone"
+              (ngModelChange)="walkInError.set(null)"
               placeholder="Ex: +221 77 123 45 67"
               (keydown.enter)="submitWalkIn()"
             />
-            <span class="walkin-modal__sms-tag">
-              📲 Si renseigné, le ticket lui sera envoyé par SMS
-            </span>
+            @if (walkInError()) {
+              <span class="walkin-modal__error" role="alert">{{ walkInError() }}</span>
+            } @else {
+              <span class="walkin-modal__sms-tag">
+                📲 Si renseigné, le ticket lui sera envoyé par SMS
+              </span>
+            }
           </div>
 
           <div class="walkin-modal__actions">
@@ -489,6 +495,8 @@ export class CoiffeurTicketsPage implements OnInit {
   protected readonly activeTab = signal<'active' | 'history'>('active');
   protected readonly showAddModal = signal(false);
   protected readonly isAddingClient = signal(false);
+  /** Erreur du formulaire « client direct » (numéro du coiffeur, refus du serveur…). */
+  protected readonly walkInError = signal<string | null>(null);
   protected walkInName = '';
   protected walkInPhone = '';
 
@@ -705,6 +713,7 @@ export class CoiffeurTicketsPage implements OnInit {
   protected openAddModal(): void {
     this.walkInName = '';
     this.walkInPhone = '';
+    this.walkInError.set(null);
     this.showAddModal.set(true);
   }
 
@@ -714,6 +723,15 @@ export class CoiffeurTicketsPage implements OnInit {
     if (!name && !phone) return;
     if (this.isAddingClient()) return;
 
+    // Le numéro du client, jamais celui du coiffeur (le serveur refuse aussi celui du salon)
+    const own = toE164(this.auth.activeUser()?.phone);
+    if (phone && own && toE164(phone) === own) {
+      this.walkInError.set(
+        'C’est votre propre numéro : saisissez celui du client, ou laissez le champ vide.',
+      );
+      return;
+    }
+    this.walkInError.set(null);
     this.isAddingClient.set(true);
 
     const user = this.auth.activeUser();
@@ -738,7 +756,8 @@ export class CoiffeurTicketsPage implements OnInit {
       error: (err) => {
         console.error('[CoiffeurTickets] Erreur addWalkInTicket:', err);
         this.isAddingClient.set(false);
-        this.showToast(
+        // Affichée dans la fenêtre, qui reste ouverte pour corriger
+        this.walkInError.set(
           this.errorMessages.message(
             err,
             "Erreur lors de l'enregistrement du client. Verifiez votre connexion.",

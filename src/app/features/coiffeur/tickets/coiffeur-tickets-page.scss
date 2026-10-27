@@ -572,6 +572,13 @@
   margin-top: 2px;
 }
 
+.walkin-modal__error {
+  font-size: 0.8125rem;
+  color: var(--danger, #dc2626);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
 .walkin-modal__actions {
   display: flex;
   align-items: center;

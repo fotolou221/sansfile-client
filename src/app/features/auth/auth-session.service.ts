@@ -223,7 +223,8 @@ export class AuthSessionService {
     this.currentUserSignal.set(updated);
     this.persistUser(updated);
 
-    // 2. If authenticated with backend JWT, also update on the server
+    // 2. Compte connecté : enregistré sur le serveur. En cas d'échec, l'ancien profil revient et l'erreur est
+    //    remontée (sinon la modification disparaîtrait au prochain chargement, sans que personne le sache).
     const token = typeof window !== 'undefined' ? localStorage.getItem(this.tokenKey) : null;
     if (token) {
       try {
@@ -234,10 +235,10 @@ export class AuthSessionService {
           }),
         );
       } catch (err) {
-        console.warn(
-          '[AuthSessionService] Could not persist profile to backend, kept in local storage:',
-          err,
-        );
+        console.warn('[AuthSessionService] Profil non enregistré sur le serveur :', err);
+        this.currentUserSignal.set(current);
+        this.persistUser(current);
+        throw err;
       }
     }
 

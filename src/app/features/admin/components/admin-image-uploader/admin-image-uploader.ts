@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { catchError, of, tap } from 'rxjs';
 import { API_CONFIG } from '../../../../core/config/api.config';
+import { prepareImageForUpload } from '../../../../shared/utils/image-upload';
 
 export interface ImagePreset {
   label: string;
@@ -168,7 +169,7 @@ export interface ImagePreset {
       <input
         #fileInput
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/*"
         style="display: none"
         (change)="onFileSelected($event)"
       />
@@ -270,8 +271,18 @@ export class AdminImageUploader {
     this.isUploading.set(true);
     this.uploadError.set(null);
 
+    // JPEG allégé préparé sur l'appareil (photos d'iPhone en HEIC comprises)
+    prepareImageForUpload(file, 1600)
+      .then((photo) => this.send(photo))
+      .catch((err: Error) => {
+        this.isUploading.set(false);
+        this.uploadError.set(err.message);
+      });
+  }
+
+  private send(photo: File): void {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', photo);
     formData.append('folder', this.folder);
 
     this.http

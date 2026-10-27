@@ -7,6 +7,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { AuthSessionService } from '../../auth/auth-session.service';
 import { SalonService } from '../../../shared/services/salon.service';
 import { API_CONFIG } from '../../../core/config/api.config';
+import { prepareImageForUpload } from '../../../shared/utils/image-upload';
 
 @Component({
   selector: 'app-coiffeur-photos-page',
@@ -56,7 +57,7 @@ import { API_CONFIG } from '../../../core/config/api.config';
               <input
                 #profileInput
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 (change)="onProfileFileSelected($event)"
                 hidden
               />
@@ -114,7 +115,7 @@ import { API_CONFIG } from '../../../core/config/api.config';
               <input
                 #salonInput
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 (change)="onSalonFileSelected($event)"
                 hidden
               />
@@ -281,16 +282,11 @@ export class CoiffeurPhotosPage implements OnInit {
       // 1. Upload profile avatar if a new file was chosen
       const profileFile = this.selectedProfileFile();
       if (profileFile) {
-        const formData = new FormData();
-        formData.append('file', profileFile);
-        formData.append('folder', 'avatars');
-
-        const uploadRes = await firstValueFrom(
-          this.http.post<any>(`${API_CONFIG.baseUrl}/storage/upload`, formData),
+        // JPEG léger préparé sur le téléphone (le HEIC des iPhone n'est pas accepté tel quel)
+        finalAvatarUrl = await this.upload(
+          await prepareImageForUpload(profileFile, 640),
+          'avatars',
         );
-        if (uploadRes && uploadRes.url) {
-          finalAvatarUrl = this.normalizeUrl(uploadRes.url);
-        }
       }
 
       // Update user profile in AuthSessionService (updates local signals and calls /api/account/profile)
@@ -302,16 +298,7 @@ export class CoiffeurPhotosPage implements OnInit {
       const salonFile = this.selectedSalonFile();
       const salon = this.currentSalon();
       if (salonFile) {
-        const formData = new FormData();
-        formData.append('file', salonFile);
-        formData.append('folder', 'salons');
-
-        const uploadRes = await firstValueFrom(
-          this.http.post<any>(`${API_CONFIG.baseUrl}/storage/upload`, formData),
-        );
-        if (uploadRes && uploadRes.url) {
-          finalCoverUrl = this.normalizeUrl(uploadRes.url);
-        }
+        finalCoverUrl = await this.upload(await prepareImageForUpload(salonFile, 1600), 'salons');
       }
 
       // 3. Update salon in backend if coverUrl OR avatarUrl changed
@@ -367,6 +354,19 @@ export class CoiffeurPhotosPage implements OnInit {
         "Impossible d'enregistrer les photos. Vérifiez votre connexion internet et réessayez.",
       );
     }
+  }
+
+  /** Envoie la photo et rend son adresse définitive ; erreur si le serveur ne la renvoie pas. */
+  private async upload(photo: File, folder: string): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', photo);
+    formData.append('folder', folder);
+    const res = await firstValueFrom(
+      this.http.post<{ url?: string }>(`${API_CONFIG.baseUrl}/storage/upload`, formData),
+    );
+    const url = this.normalizeUrl(res?.url);
+    if (!url) throw new Error("La photo n'a pas pu être enregistrée. Réessayez.");
+    return url;
   }
 
   private normalizeUrl(url: string | null | undefined): string | null {

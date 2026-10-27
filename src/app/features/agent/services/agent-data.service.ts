@@ -4,6 +4,7 @@ import { firstValueFrom, Observable, tap } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { generateSlug } from '../../admin/services/admin-data.service';
 import { AgentDashboard, AgentSalon, AgentSalonForm } from '../models/agent';
+import { prepareImageForUpload } from '../../../shared/utils/image-upload';
 
 /**
  * Données de l'espace agent. Un salon inscrit passe par POST /api/salons : le serveur le rattache
@@ -67,10 +68,13 @@ export class AgentDataService {
     });
   }
 
-  /** Photo du salon (dossier « salons ») ; renvoie l'URL publique. */
+  /**
+   * Photo du salon (dossier « salons ») ; renvoie l'URL publique. Convertie en JPEG léger sur le téléphone
+   * (le HEIC des iPhone n'est pas accepté tel quel).
+   */
   async uploadPhoto(file: File): Promise<string> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', await prepareImageForUpload(file, 1600));
     formData.append('folder', 'salons');
     const res = await firstValueFrom(
       this.http.post<{ url?: string }>(`${this.baseUrl}/storage/upload`, formData),
