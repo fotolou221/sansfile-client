@@ -94,10 +94,20 @@ export class NotificationService {
         if (!this.isAppVisible()) return;
         this.confirmDelivery();
         if (this.alertWhenVisible) {
-          this.screenAlert.set(this.alertWhenVisible);
+          this.showScreenAlert(this.alertWhenVisible);
           this.alertWhenVisible = null;
         }
       });
+      // Les navigateurs bloquent le son tant que la page n'a pas été touchée : on le débloque au premier geste
+      const unlockAudio = () => {
+        this.audio()
+          ?.resume()
+          .catch(() => undefined);
+        document.removeEventListener('pointerdown', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+      };
+      document.addEventListener('pointerdown', unlockAudio, { passive: true });
+      document.addEventListener('keydown', unlockAudio);
     }
   }
 
@@ -209,56 +219,75 @@ export class NotificationService {
     }
 
     const latest = newUnread[0];
-    this.playNotificationSound();
-    this.showBrowserNotification(latest);
     if (this.isAppVisible()) {
-      this.screenAlert.set(latest);
+      this.showScreenAlert(latest);
       this.confirmDelivery();
     } else {
+      // App en arrière-plan : notification du téléphone, puis bandeau au retour dans l'app
+      this.showBrowserNotification(latest);
       this.alertWhenVisible = latest;
     }
   }
 
-  private playNotificationSound(): void {
-    if (!this.isBrowser) return;
+  /** Bandeau à l'écran, avec un son et une vibration pour ne pas le manquer. */
+  private showScreenAlert(notification: AppNotification): void {
+    this.screenAlert.set(notification);
+    this.playNotificationSound();
+    try {
+      navigator.vibrate?.([180, 90, 180]);
+    } catch {
+      // vibration indisponible (ordinateur, iPhone)
+    }
+  }
 
+  private audio(): AudioContext | null {
+    if (!this.isBrowser) return null;
+    if (this.audioContext) return this.audioContext;
     const AudioContextCtor =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextCtor) return;
-
+    if (!AudioContextCtor) return null;
     try {
-      const context = this.audioContext || new AudioContextCtor();
-      this.audioContext = context;
+      this.audioContext = new AudioContextCtor();
+    } catch {
+      return null;
+    }
+    return this.audioContext;
+  }
 
-      const play = () => {
-        const start = context.currentTime;
+  /** Carillon à deux notes, assez fort pour être entendu dans un salon. */
+  private playNotificationSound(): void {
+    const context = this.audio();
+    if (!context) return;
+
+    const play = () => {
+      const start = context.currentTime;
+      [
+        { frequency: 880, at: 0 },
+        { frequency: 1320, at: 0.16 },
+      ].forEach(({ frequency, at }) => {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
-
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(740, start);
-        oscillator.frequency.exponentialRampToValueAtTime(980, start + 0.12);
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.16, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
-
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(frequency, start + at);
+        gain.gain.setValueAtTime(0.0001, start + at);
+        gain.gain.exponentialRampToValueAtTime(0.35, start + at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + at + 0.45);
         oscillator.connect(gain);
         gain.connect(context.destination);
-        oscillator.start(start);
-        oscillator.stop(start + 0.24);
-      };
+        oscillator.start(start + at);
+        oscillator.stop(start + at + 0.5);
+      });
+    };
 
-      if (context.state === 'suspended') {
-        context
-          .resume()
-          .then(play)
-          .catch(() => undefined);
-      } else {
-        play();
-      }
-    } catch {
-      // Browser autoplay policies can block audio until the user interacts with the app.
+    if (context.state === 'suspended') {
+      // Son bloqué tant que la page n'a pas été touchée : la vibration et le bandeau restent
+      context
+        .resume()
+        .then(play)
+        .catch(() => undefined);
+    } else {
+      play();
     }
   }
 

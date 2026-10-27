@@ -2,7 +2,7 @@
   display: contents;
 }
 
-// ── Bandeau en haut de l'écran, au-dessus du contenu (sous le popup de mise à jour) ──
+// ── Bandeau simple en haut de l'écran : fond contrasté, sans bordure ni couleur (inversé en thème sombre) ──
 .notification-alert {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top, 0px));
@@ -11,12 +11,10 @@
   width: calc(100% - 24px);
   max-width: 440px;
   display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-left: 4px solid var(--primary, #1e5af0);
+  align-items: center;
   border-radius: 16px;
+  background: var(--text-primary, #0f172a);
+  color: var(--bg-card, #ffffff);
   transform: translateX(-50%);
   animation: notification-alert-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -35,10 +33,7 @@
 .notification-alert__body {
   flex: 1;
   min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 4px 14px 14px;
+  padding: 14px 4px 14px 18px;
   border: 0;
   background: none;
   font: inherit;
@@ -47,24 +42,7 @@
   cursor: pointer;
 }
 
-.notification-alert__icon {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--primary-light, #eef2ff);
-  color: var(--primary, #1e5af0);
-
-  svg {
-    width: 20px;
-    height: 20px;
-  }
-}
-
 .notification-alert__text {
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -73,13 +51,14 @@
 .notification-alert__title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: inherit;
 }
 
 .notification-alert__message {
   font-size: 13px;
   line-height: 1.4;
-  color: var(--text-secondary, #64748b);
+  color: inherit;
+  opacity: 0.8;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -88,14 +67,15 @@
 
 .notification-alert__close {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  margin: 4px 4px 0 0;
+  width: 44px;
+  height: 44px;
+  margin-right: 4px;
   border: 0;
   border-radius: 12px;
   background: none;
   font-size: 22px;
   line-height: 1;
-  color: var(--text-muted, #94a3b8);
+  color: inherit;
+  opacity: 0.7;
   cursor: pointer;
 }
