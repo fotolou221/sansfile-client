@@ -175,6 +175,10 @@ interface Gauge {
                   {{ formatNumber(s.sms.failedSinceStartup) }} échec(s)
                 </dd>
               </div>
+              <div>
+                <dt>SMS économisés (30 jours)</dt>
+                <dd>{{ formatNumber(s.sms.avoidedLast30Days) }} alerte(s) reçue(s) dans l'app</dd>
+              </div>
               @if (s.sms.lastFailureAt) {
                 <div>
                   <dt>Dernier échec</dt>

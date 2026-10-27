@@ -32,6 +32,10 @@ export class NotificationService {
   readonly loading = signal<boolean>(false);
   readonly isRefreshing = signal<boolean>(false);
   readonly error = signal<string | null>(null);
+  /** Nouvelle notification affichée en bandeau, l'app étant à l'écran. */
+  readonly screenAlert = signal<AppNotification | null>(null);
+  /** Arrivée app en arrière-plan : affichée en bandeau au retour à l'écran. */
+  private alertWhenVisible: AppNotification | null = null;
 
   // ── Cache Strategy (SWR - 1 min TTL) ────────────────────────
   private lastFetchedAt: number | null = null;
@@ -79,9 +83,43 @@ export class NotificationService {
           this.loading.set(false);
           this.isRefreshing.set(false);
           this.error.set(null);
+          this.screenAlert.set(null);
+          this.alertWhenVisible = null;
         }
       });
     });
+
+    if (this.isBrowser) {
+      document.addEventListener('visibilitychange', () => {
+        if (!this.isAppVisible()) return;
+        this.confirmDelivery();
+        if (this.alertWhenVisible) {
+          this.screenAlert.set(this.alertWhenVisible);
+          this.alertWhenVisible = null;
+        }
+      });
+    }
+  }
+
+  dismissScreenAlert(): void {
+    this.screenAlert.set(null);
+  }
+
+  private isAppVisible(): boolean {
+    return this.isBrowser && document.visibilityState === 'visible';
+  }
+
+  /**
+   * L'app est à l'écran : les alertes en attente sont reçues, le serveur n'envoie pas leur SMS de secours
+   * (il ne part que si ni l'app ni le téléphone ne confirment la réception à temps).
+   */
+  private confirmDelivery(): void {
+    const user = this.auth.currentUser();
+    if (!user || user.id === 'guest') return;
+    this.http
+      .put(`${this.baseUrl}${API_CONFIG.endpoints.notifications}/mark-delivered`, {})
+      .pipe(catchError(() => of(null)))
+      .subscribe();
   }
 
   loadNotifications(forceRefresh: boolean = false): void {
@@ -162,6 +200,7 @@ export class NotificationService {
 
     if (!this.hasLoadedOnce) {
       this.hasLoadedOnce = true;
+      if (this.isAppVisible()) this.confirmDelivery();
       return;
     }
 
@@ -172,6 +211,12 @@ export class NotificationService {
     const latest = newUnread[0];
     this.playNotificationSound();
     this.showBrowserNotification(latest);
+    if (this.isAppVisible()) {
+      this.screenAlert.set(latest);
+      this.confirmDelivery();
+    } else {
+      this.alertWhenVisible = latest;
+    }
   }
 
   private playNotificationSound(): void {

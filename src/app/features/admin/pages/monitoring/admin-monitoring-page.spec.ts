@@ -80,6 +80,7 @@ const HEALTHY: MonitoringSnapshot = {
     failedSinceStartup: 0,
     lastSentAt: null,
     lastFailureAt: null,
+    avoidedLast30Days: 12,
   },
   storage: {
     provider: 'local',

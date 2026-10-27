@@ -12,7 +12,8 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor, maintenanceInterceptor])),
-    provideServiceWorker('ngsw-worker.js', {
+    // Service worker d'Angular, enrichi de l'accusé de réception des notifications push (public/sansfile-sw.js)
+    provideServiceWorker('sansfile-sw.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerImmediately',
       updateViaCache: 'none',

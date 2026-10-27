@@ -3,6 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { InstallBanner } from './shared/components/install-banner/install-banner';
 import { UpdatePrompt } from './shared/components/update-prompt/update-prompt';
 import { DesktopRestriction } from './shared/components/desktop-restriction/desktop-restriction';
+import { NotificationAlert } from './shared/components/notification-alert/notification-alert';
 import { RealtimeSyncService } from './shared/services/realtime-sync.service';
 import { PwaService } from './shared/services/pwa.service';
 import { ThemeService } from './shared/services/theme.service';
@@ -10,7 +11,7 @@ import { MaintenanceWatcher } from './core/services/maintenance-watcher.service'
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, InstallBanner, UpdatePrompt, DesktopRestriction],
+  imports: [RouterOutlet, InstallBanner, UpdatePrompt, DesktopRestriction, NotificationAlert],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

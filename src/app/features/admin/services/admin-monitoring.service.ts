@@ -59,6 +59,8 @@ export interface MonitoringSnapshot {
     failedSinceStartup: number;
     lastSentAt: string | null;
     lastFailureAt: string | null;
+    /** Notifications reçues à temps dans l'app : SMS de secours non envoyés. */
+    avoidedLast30Days: number;
   };
   storage: {
     provider: 'cloudinary' | 'local';
