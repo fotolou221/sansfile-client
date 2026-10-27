@@ -9,8 +9,11 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { ProductService } from '../../../shared/services/product.service';
 import { CartService } from '../../../shared/services/cart.service';
 import { NotificationService } from '../../../shared/services/notification.service';
-import { LocalityService } from '../../../shared/services/locality.service';
+import { ShopService } from '../../../shared/services/shop.service';
+import { UserPositionService } from '../../../shared/services/user-position.service';
 import { CategoryStrip } from '../../../shared/components/category-strip/category-strip';
+import { PositionRequired } from '../../../shared/components/position-required/position-required';
+import { formatDistance } from '../../../shared/utils/geo';
 
 @Component({
   selector: 'app-shop-page',
@@ -23,6 +26,7 @@ import { CategoryStrip } from '../../../shared/components/category-strip/categor
     ErrorStateComponent,
     RouterLink,
     CategoryStrip,
+    PositionRequired,
   ],
   template: `
     <app-client-layout activeNav="shop" [hasHeaderSlot]="true">
@@ -84,16 +88,25 @@ import { CategoryStrip } from '../../../shared/components/category-strip/categor
 
       <!-- Main Content -->
       <div class="shop-page__content">
-        <!-- La boutique montre ce que le partenaire de la localité du compte a en stock -->
-        @if (shopClosedMessage(); as closed) {
+        <!-- La boutique montre ce que le partenaire le plus proche du téléphone a en stock -->
+        @if (!positions.ready()) {
+          <app-position-required
+            title="La boutique près de chez vous"
+            text="Autorisez votre position pour voir les produits de la boutique SansFile la plus proche, livrés chez vous."
+          />
+        } @else if (shopService.shop() === null) {
+          <app-skeleton-loader type="product" [count]="6" />
+        } @else if (!shopService.shop()!.available) {
           <app-empty-state
             icon="shop"
-            [title]="closed.title"
-            [description]="closed.description"
-            [actionLabel]="closed.action"
-            (action)="changeAccountLocality()"
+            title="La boutique n'est pas encore disponible près de chez vous"
+            description="Elle ouvrira dès qu'un partenaire SansFile sera installé dans votre zone. Revenez bientôt !"
           />
         } @else {
+          @if (nearestLabel(); as label) {
+            <p class="shop-page__nearest">{{ label }}</p>
+          }
+
           <!-- Search Input -->
           <div class="shop-page__search">
             <app-search-bar
@@ -203,7 +216,8 @@ export class ShopPage {
   protected readonly productService = inject(ProductService);
   protected readonly cartService = inject(CartService);
   protected readonly notificationService = inject(NotificationService);
-  protected readonly localityService = inject(LocalityService);
+  protected readonly shopService = inject(ShopService);
+  protected readonly positions = inject(UserPositionService);
 
   /** Accueil de la boutique : un aperçu, le reste sur la page « Tous les produits ». */
   protected readonly previewSize = 10;
@@ -218,51 +232,13 @@ export class ShopPage {
     Math.max(0, this.allProducts().length - this.previewSize),
   );
 
-  constructor() {
-    void this.localityService.loadLocalities(true);
-    if (!this.localityService.account()) {
-      void this.localityService.loadAccount();
-    }
-  }
-
-  /** Boutique fermée : compte sans localité, ou pas de partenaire dans sa localité. */
-  protected readonly shopClosedMessage = computed<{
-    title: string;
-    description: string;
-    action?: string;
-  } | null>(() => {
-    const localityId = this.localityService.shopLocalityId();
-    if (localityId === null) {
-      const requested = this.localityService.account()?.requestedLocality;
-      return requested
-        ? {
-            title: `La boutique n'est pas encore disponible à ${requested}`,
-            description: 'Elle ouvrira dès qu’un partenaire SansFile y sera installé.',
-            action: 'Changer ma localité',
-          }
-        : {
-            title: 'Choisissez votre localité',
-            description: 'La boutique vous montre les produits livrables dans votre localité.',
-            action: 'Choisir ma localité',
-          };
-    }
-    const locality = this.localityService.shopLocality();
-    if (locality && !locality.shopAvailable) {
-      return {
-        title: `La boutique n'est pas encore disponible à ${locality.name}`,
-        description:
-          'Elle ouvrira dès qu’un partenaire SansFile y sera installé. Revenez bientôt !',
-      };
-    }
-    return null;
+  /** « Boutique la plus proche, à 2,3 km · livraison 1 500 FCFA ». */
+  protected readonly nearestLabel = computed(() => {
+    const shop = this.shopService.shop();
+    if (!shop?.available) return null;
+    const distance = shop.distanceKm === null ? '' : `, ${formatDistance(shop.distanceKm)}`;
+    return `Boutique la plus proche${distance} · livraison ${shop.deliveryFee.toLocaleString('fr-FR')} FCFA`;
   });
-
-  /** La boutique suit la localité du compte : en changer passe par « Ma localité ». */
-  protected changeAccountLocality(): void {
-    void this.router.navigate(['/ma-localite'], {
-      queryParams: { changer: 1, redirect: '/client/boutique' },
-    });
-  }
 
   protected readonly emptyTitle = computed(() => {
     return this.productService.products().length === 0

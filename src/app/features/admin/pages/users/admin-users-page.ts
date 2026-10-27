@@ -6,7 +6,6 @@ import { AdminPagination } from '../../components/admin-pagination/admin-paginat
 import { AdminModal } from '../../components/admin-modal/admin-modal';
 import { AdminImageUploader } from '../../components/admin-image-uploader/admin-image-uploader';
 import { AdminConfirmService } from '../../services/admin-confirm.service';
-import { AdminLocalitiesService } from '../../services/admin-localities.service';
 
 @Component({
   selector: 'app-admin-users-page',
@@ -69,7 +68,6 @@ import { AdminLocalitiesService } from '../../services/admin-localities.service'
                 <th>Utilisateur / Photo</th>
                 <th>Type de Profil</th>
                 <th>Téléphone</th>
-                <th>Localité</th>
                 <th>Tickets pris (Clients)</th>
                 <th>Proches enregistrés</th>
                 <th>Inscrit depuis</th>
@@ -111,19 +109,6 @@ import { AdminLocalitiesService } from '../../services/admin-localities.service'
                   </td>
                   <td>
                     <strong>{{ user.phone }}</strong>
-                  </td>
-                  <td>
-                    @if (user.localityId) {
-                      {{
-                        localities.localityName(user.localityId) || 'Localité n°' + user.localityId
-                      }}
-                    } @else if (user.requestedLocality) {
-                      <span class="admin-table__subtext"
-                        >Demandée : {{ user.requestedLocality }}</span
-                      >
-                    } @else {
-                      <span class="admin-table__subtext">Pas encore choisie</span>
-                    }
                   </td>
                   <td>
                     @if (user.role === 'client' || user.ticketsCount > 0) {
@@ -187,7 +172,7 @@ import { AdminLocalitiesService } from '../../services/admin-localities.service'
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="9" class="admin-table__empty">Aucun utilisateur trouvé.</td>
+                  <td colspan="8" class="admin-table__empty">Aucun utilisateur trouvé.</td>
                 </tr>
               }
             </tbody>
@@ -303,7 +288,6 @@ import { AdminLocalitiesService } from '../../services/admin-localities.service'
 })
 export class AdminUsersPage implements OnInit {
   protected readonly data = inject(AdminDataService);
-  protected readonly localities = inject(AdminLocalitiesService);
   private readonly confirmService = inject(AdminConfirmService);
 
   protected searchQuery = '';
@@ -324,7 +308,6 @@ export class AdminUsersPage implements OnInit {
   ngOnInit(): void {
     this.data.loadUsers();
     this.data.loadRelatives();
-    this.localities.ensureLocalities();
   }
 
   protected readonly filteredUsers = computed(() => {

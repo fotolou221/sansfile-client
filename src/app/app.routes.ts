@@ -65,8 +65,6 @@ import {
 import { MaintenancePage } from './features/maintenance/maintenance-page';
 import { LegalPage } from './features/legal/legal-page';
 import { maintenanceGuard } from './core/guards/maintenance.guard';
-import { localityChosenGuard } from './core/guards/locality.guard';
-import { ChooseLocalityPage } from './features/locality/choose-locality-page';
 import {
   clientAuthGuard,
   coiffeurAuthGuard,
@@ -84,8 +82,8 @@ const APP_ROUTES: Routes = [
   { path: 'onboarding', component: OnboardingPage },
   { path: 'auth/login', component: LoginPage, canActivate: [guestOnlyAuthGuard] },
   { path: 'auth/code', component: OtpPage, canActivate: [guestOnlyAuthGuard] },
-  // Choix de la localité (imposé après connexion tant qu'il n'est pas fait, puis depuis le profil)
-  { path: 'ma-localite', component: ChooseLocalityPage, canActivate: [shopAuthGuard] },
+  // Ancienne page « Ma localité » (liens enregistrés) : salons et boutique suivent désormais la position
+  { path: 'ma-localite', redirectTo: 'client/home', pathMatch: 'full' },
 
   // ── Client Routes (Protected) ─────────────────────────────
   { path: 'client/home', component: ClientHomePage, canActivate: [clientAuthGuard] },
@@ -224,20 +222,12 @@ const OPEN_DURING_MAINTENANCE = new Set([
   'admin/login',
 ]);
 
-/** Espace client, boutique et espace coiffeur : la localité du compte doit être choisie. */
-function needsLocality(path: string | undefined): boolean {
-  return !!path && (path.startsWith('client/') || path.startsWith('coiffeur/'));
-}
-
 /** Toute autre page (application client, coiffeur, connexion…) affiche la page de maintenance. */
 export const routes: Routes = APP_ROUTES.map((route) => {
   if (route.redirectTo !== undefined) {
     return route;
   }
-  const guards = [
-    ...(route.canActivate ?? []),
-    ...(needsLocality(route.path) ? [localityChosenGuard] : []),
-  ];
+  const guards = route.canActivate ?? [];
   return OPEN_DURING_MAINTENANCE.has(route.path ?? '')
     ? { ...route, canActivate: guards }
     : { ...route, canActivate: [maintenanceGuard, ...guards] };

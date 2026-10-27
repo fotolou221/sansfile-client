@@ -3,16 +3,15 @@ import {
   inject,
   signal,
   computed,
-  effect,
-  untracked,
   OnInit,
   OnDestroy,
   ElementRef,
   ViewChild,
   AfterViewInit,
 } from '@angular/core';
-import { LocalityService } from '../../../shared/services/locality.service';
 import { Router, RouterLink } from '@angular/router';
+import { UserPositionService } from '../../../shared/services/user-position.service';
+import { PositionRequired } from '../../../shared/components/position-required/position-required';
 import { ClientLayout } from '../../../shared/components/client-layout/client-layout';
 import { LocationHeader } from '../../../shared/components/location-header/location-header';
 import { SearchBar } from '../../../shared/components/search-bar/search-bar';
@@ -35,6 +34,7 @@ import { AuthSessionService } from '../../auth/auth-session.service';
     SkeletonLoaderComponent,
     EmptyStateComponent,
     ErrorStateComponent,
+    PositionRequired,
   ],
   template: `
     <app-client-layout activeNav="home">
@@ -76,11 +76,7 @@ import { AuthSessionService } from '../../auth/auth-session.service';
             <div class="client-home__section-header">
               <div class="client-home__section-title-wrap">
                 <h2 class="client-home__section-title">
-                  {{
-                    salonService.searchQuery() || localityService.viewingAll()
-                      ? 'Salons recommandés'
-                      : 'Salons à ' + localityService.viewedLabel()
-                  }}
+                  {{ salonService.searchQuery() ? 'Résultats' : 'Salons autour de vous' }}
                 </h2>
               </div>
               <a routerLink="/client/salons" class="client-home__see-all-link">
@@ -102,7 +98,10 @@ import { AuthSessionService } from '../../auth/auth-session.service';
 
         <!-- INDEPENDENTLY SCROLLABLE SALONS LIST -->
         <main #scrollContent class="client-home__scroll-content" (scroll)="onContainerScroll()">
-          @if (salonService.loading()) {
+          @if (!positions.ready() && !salonService.searchQuery()) {
+            <!-- Position d'abord : les salons sont triés du plus proche au plus loin -->
+            <app-position-required />
+          } @else if (salonService.loading()) {
             <div class="client-home__list">
               <app-skeleton-loader type="salon" [count]="4" />
             </div>
@@ -118,35 +117,21 @@ import { AuthSessionService } from '../../auth/auth-session.service';
               @for (salon of displayedSalons(); track salon.id + '-' + $index) {
                 <app-salon-list-card [salon]="salon" />
               } @empty {
-                @if (!salonService.searchQuery() && !localityService.viewingAll()) {
-                  <app-empty-state
-                    icon="ticket"
-                    [title]="'Pas encore de salon à ' + localityService.viewedLabel()"
-                    description="Les salons de cette localité arrivent bientôt. En attendant, découvrez ceux des autres localités."
-                    actionLabel="Voir toutes les localités"
-                    (action)="localityService.setViewed('all')"
-                  />
-                } @else {
-                  <app-empty-state
-                    [icon]="salonService.searchQuery() ? 'search' : 'ticket'"
-                    [title]="
-                      salonService.searchQuery()
-                        ? 'Aucun salon trouvé'
-                        : 'Aucun salon disponible pour le moment'
-                    "
-                    [description]="
-                      salonService.searchQuery()
-                        ? 'Essayez une autre recherche ou réinitialisez vos filtres.'
-                        : 'Les salons partenaires de SansFile apparaîtront dès leur ouverture. Revenez très bientôt !'
-                    "
-                    [actionLabel]="
-                      salonService.searchQuery() ? 'Effacer la recherche' : 'Actualiser'
-                    "
-                    (action)="
-                      salonService.searchQuery() ? clearSearch() : salonService.loadSalons()
-                    "
-                  />
-                }
+                <app-empty-state
+                  [icon]="salonService.searchQuery() ? 'search' : 'ticket'"
+                  [title]="
+                    salonService.searchQuery()
+                      ? 'Aucun salon trouvé'
+                      : 'Aucun salon disponible pour le moment'
+                  "
+                  [description]="
+                    salonService.searchQuery()
+                      ? 'Essayez une autre recherche ou réinitialisez vos filtres.'
+                      : 'Les salons partenaires de SansFile apparaîtront dès leur ouverture. Revenez très bientôt !'
+                  "
+                  [actionLabel]="salonService.searchQuery() ? 'Effacer la recherche' : 'Actualiser'"
+                  (action)="salonService.searchQuery() ? clearSearch() : salonService.loadSalons()"
+                />
               }
             </div>
 
@@ -176,16 +161,8 @@ export class ClientHomePage implements OnInit, AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   protected readonly salonService = inject(SalonService);
   protected readonly notificationService = inject(NotificationService);
-  protected readonly localityService = inject(LocalityService);
+  protected readonly positions = inject(UserPositionService);
   private readonly auth = inject(AuthSessionService);
-
-  constructor() {
-    // Autre localité regardée : la liste repart de ses 10 premiers salons
-    effect(() => {
-      this.localityService.viewedLocalityId();
-      untracked(() => this.displayedLimit.set(this.pageSize));
-    });
-  }
 
   @ViewChild('scrollContent') scrollContentRef?: ElementRef<HTMLElement>;
   @ViewChild('scrollSentinel') sentinelRef?: ElementRef<HTMLDivElement>;

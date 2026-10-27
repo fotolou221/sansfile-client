@@ -115,6 +115,14 @@
   margin-bottom: 24px;
 }
 
+// Boutique servie : celle du partenaire le plus proche du téléphone
+.shop-page__nearest {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+}
+
 .shop-page__section-header {
   display: flex;
   align-items: center;

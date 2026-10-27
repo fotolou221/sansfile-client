@@ -4,6 +4,7 @@ import { Salon } from '../../models/salon';
 import { StatusBadge } from '../status-badge/status-badge';
 import { FavoritesService } from '../../services/favorites.service';
 import { SalonService } from '../../services/salon.service';
+import { formatDistance } from '../../utils/geo';
 
 @Component({
   selector: 'app-salon-list-card',
@@ -64,9 +65,7 @@ import { SalonService } from '../../services/salon.service';
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
           </svg>
-          <span class="salon-list-card__location-text">{{
-            salonService.localityNameOf(salon) || salon.location
-          }}</span>
+          <span class="salon-list-card__location-text">{{ placeLabel() }}</span>
         </span>
         @if (salon.ownerName || salon.coiffeurName || salon.name) {
           <span class="salon-list-card__owner">
@@ -105,6 +104,14 @@ export class SalonListCard {
   readonly defaultAvatar = 'images/salons/king-barber-avatar.png';
 
   @Input({ required: true }) salon!: Salon;
+
+  /** « à 1,2 km · Médina » : distance du téléphone (si connue), puis le quartier du salon. */
+  protected placeLabel(): string {
+    const km = this.salonService.distanceOf(this.salon);
+    const place =
+      this.salon.district || this.salon.location || this.salonService.localityNameOf(this.salon);
+    return [km === null ? null : formatDistance(km), place].filter(Boolean).join(' · ');
+  }
 
   protected isFav(): boolean {
     return this.favoritesService.isFavorite(this.salon.id);

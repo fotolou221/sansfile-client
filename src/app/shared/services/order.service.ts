@@ -8,6 +8,7 @@ import { AuthSessionService } from '../../features/auth/auth-session.service';
 import { HttpErrorMessageService } from './http-error-message.service';
 import { ProductService } from './product.service';
 import { PlatformSettingsService } from './platform-settings.service';
+import { GeoPoint } from '../utils/geo';
 
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1621607512214-68297480165e?auto=format&fit=crop&w=400&q=80';
@@ -123,10 +124,15 @@ export class OrderService {
     };
   }
 
-  /** Montants du panier dans la localité du compte : acompte à envoyer et part payée au livreur. */
-  quote(items: readonly CartItem[]): Observable<OrderQuote> {
+  /**
+   * Montants du panier dans la boutique la plus proche de cette position (celle de la livraison) : acompte à
+   * envoyer et part payée au livreur.
+   */
+  quote(items: readonly CartItem[], position: GeoPoint | null): Observable<OrderQuote> {
     return this.http.post<OrderQuote>(`${this.baseUrl}/orders/quote`, {
       items: items.map((i) => ({ productId: Number(i.product.id) || 0, quantity: i.quantity })),
+      latitude: position?.latitude ?? null,
+      longitude: position?.longitude ?? null,
     });
   }
 

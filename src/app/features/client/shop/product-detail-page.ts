@@ -1,17 +1,25 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, effect, inject, signal, computed, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ClientLayout } from '../../../shared/components/client-layout/client-layout';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { SkeletonLoaderComponent } from '../../../shared/components/skeleton-loader/skeleton-loader.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { PositionRequired } from '../../../shared/components/position-required/position-required';
 import { Product } from '../../../shared/models/product';
 import { ProductService } from '../../../shared/services/product.service';
 import { CartService } from '../../../shared/services/cart.service';
-import { LocalityService } from '../../../shared/services/locality.service';
+import { UserPositionService } from '../../../shared/services/user-position.service';
 
 @Component({
   selector: 'app-product-detail-page',
-  imports: [ClientLayout, PageHeader, SkeletonLoaderComponent, ErrorStateComponent, RouterLink],
+  imports: [
+    ClientLayout,
+    PageHeader,
+    SkeletonLoaderComponent,
+    ErrorStateComponent,
+    RouterLink,
+    PositionRequired,
+  ],
   template: `
     <app-client-layout [showBottomNav]="false" [hasCustomFooter]="true">
       <!-- Fixed Header Slot -->
@@ -42,7 +50,12 @@ import { LocalityService } from '../../../shared/services/locality.service';
       </div>
 
       <!-- Main Content -->
-      @if (loading()) {
+      @if (!positions.ready()) {
+        <app-position-required
+          title="La boutique près de chez vous"
+          text="Autorisez votre position pour voir si ce produit est disponible dans la boutique SansFile la plus proche."
+        />
+      } @else if (loading()) {
         <div class="product-detail-page__loading">
           <app-skeleton-loader type="card" [count]="2" />
         </div>
@@ -124,8 +137,7 @@ import { LocalityService } from '../../../shared/services/locality.service';
                 [class.product-detail-page__stock-status--out]="!availableHere()"
               >
                 <span class="product-detail-page__stock-dot"></span>
-                {{ availableHere() ? 'Disponible' : 'Indisponible' }} à
-                {{ localityService.shopLocalityName() || 'votre localité' }}
+                {{ availableHere() ? 'Disponible' : 'Indisponible' }} près de chez vous
               </span>
             </div>
           </section>
@@ -133,7 +145,7 @@ import { LocalityService } from '../../../shared/services/locality.service';
       }
 
       <!-- Fixed Footer Slot -->
-      @if (product && !loading()) {
+      @if (product && !loading() && positions.ready()) {
         <div slot="footer" class="product-detail-page__fixed-footer">
           <button
             type="button"
@@ -161,12 +173,19 @@ import { LocalityService } from '../../../shared/services/locality.service';
   `,
   styleUrl: './product-detail-page.scss',
 })
-export class ProductDetailPage implements OnInit {
+export class ProductDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly productService = inject(ProductService);
   protected readonly cartService = inject(CartService);
-  protected readonly localityService = inject(LocalityService);
+  protected readonly positions = inject(UserPositionService);
+
+  constructor() {
+    // Produit cherché dans la boutique la plus proche : dès que la position est connue
+    effect(() => {
+      if (this.positions.ready()) untracked(() => this.loadProduct());
+    });
+  }
 
   /** Retour vers « Tous les produits » si la fiche a été ouverte depuis cette page. */
   protected readonly backRoute =
@@ -174,7 +193,7 @@ export class ProductDetailPage implements OnInit {
       ? '/client/boutique/catalogue'
       : '/client/boutique';
 
-  /** Le partenaire de la localité du compte a ce produit en stock. */
+  /** Le partenaire le plus proche a ce produit en stock. */
   protected readonly availableHere = computed(() => {
     const id = this.productId();
     return !!id && this.productService.isAvailableHere(id);
@@ -198,10 +217,6 @@ export class ProductDetailPage implements OnInit {
   protected readonly selectedImage = signal('');
   protected readonly quantity = signal(1);
 
-  ngOnInit(): void {
-    this.loadProduct();
-  }
-
   loadProduct(): void {
     this.loading.set(true);
     this.error.set(null);
@@ -214,7 +229,9 @@ export class ProductDetailPage implements OnInit {
         if (found) {
           this.selectedImage.set(found.images[0] || '');
         } else {
-          this.error.set("Ce produit n'est pas disponible dans votre localité.");
+          this.error.set(
+            "Ce produit n'est pas disponible dans la boutique la plus proche de vous.",
+          );
         }
         this.loading.set(false);
       },

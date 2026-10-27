@@ -569,7 +569,7 @@ export class VitrinePage implements OnInit {
       icon: 'bag',
       color: 'green',
       title: 'La boutique',
-      text: 'Tondeuses, soins et accessoires livrés dans ta localité.',
+      text: 'Tondeuses, soins et accessoires livrés près de chez toi.',
     },
   ] as const;
 

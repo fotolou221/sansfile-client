@@ -1,24 +1,24 @@
 import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { Product, CartItem } from '../models/product';
-import { LocalityService } from './locality.service';
 import { ProductService } from './product.service';
+import { ShopService } from './shop.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class CartService {
   private readonly STORAGE_KEY = 'sansfile_cart_items';
-  private readonly localityService = inject(LocalityService);
+  private readonly shopService = inject(ShopService);
   private readonly productService = inject(ProductService);
 
   readonly cartItems = signal<readonly CartItem[]>(this.readInitialCart());
-  /** Frais de livraison de la localité du compte (fixés par l'administration). */
-  readonly deliveryFee = computed(() => this.localityService.shopLocality()?.deliveryFee ?? 0);
+  /** Frais de livraison de la boutique la plus proche (fixés par l'administration). */
+  readonly deliveryFee = computed(() => this.shopService.deliveryFee());
   readonly discount = signal(0);
 
   /**
-   * Articles du panier que le partenaire de la localité n'a pas (panier rempli dans une autre
-   * localité, produit retiré…). Ils doivent être retirés avant de commander.
+   * Articles du panier que le partenaire le plus proche n'a pas (panier rempli ailleurs, produit
+   * retiré…). Ils doivent être retirés avant de commander.
    */
   readonly unavailableItems = computed(() => {
     if (this.productService.loading()) return [];

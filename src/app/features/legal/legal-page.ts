@@ -40,8 +40,9 @@ import { PlatformSettingsService } from '../../shared/services/platform-settings
           <p>
             SansFile permet de prendre un ticket virtuel dans un salon de coiffure ou chez un
             barbier partenaire, de suivre la file d’attente en direct et d’être prévenu par SMS
-            quand son tour approche. SansFile propose aussi une boutique de produits de coiffure,
-            selon les localités. En utilisant SansFile, vous acceptez les présentes conditions.
+            quand son tour approche. SansFile propose aussi une boutique de produits de coiffure, là
+            où un partenaire peut livrer. En utilisant SansFile, vous acceptez les présentes
+            conditions.
           </p>
 
           <h3>Votre compte</h3>
@@ -61,10 +62,10 @@ import { PlatformSettingsService } from '../../shared/services/platform-settings
 
           <h3>La boutique</h3>
           <p>
-            Les produits, les prix et la livraison dépendent de votre localité. Une commande est
-            confirmée après un échange avec SansFile par WhatsApp ou par téléphone. Un acompte,
-            indiqué avant la commande, est demandé à la confirmation ; le reste est réglé au livreur
-            à la livraison.
+            Les produits et la livraison sont ceux de la boutique partenaire la plus proche de votre
+            position. Une commande est confirmée après un échange avec SansFile par WhatsApp ou par
+            téléphone. Un acompte, indiqué avant la commande, est demandé à la confirmation ; le
+            reste est réglé au livreur à la livraison.
           </p>
 
           <h3>Gratuité</h3>
@@ -102,7 +103,13 @@ import { PlatformSettingsService } from '../../shared/services/platform-settings
           <ul>
             <li>
               <span class="legal-strong">Votre compte</span> : numéro de téléphone, nom et photo de
-              profil si vous les renseignez, localité choisie.
+              profil si vous les renseignez.
+            </li>
+            <li>
+              <span class="legal-strong">Votre position</span>, si vous l’autorisez : elle reste sur
+              votre téléphone pour trier les salons par distance. Elle n’est envoyée que pour
+              trouver la boutique la plus proche (sans être enregistrée) et pour livrer une
+              commande.
             </li>
             <li>
               <span class="legal-strong">Vos proches</span> : nom, lien de parenté et, si vous
@@ -110,8 +117,8 @@ import { PlatformSettingsService } from '../../shared/services/platform-settings
             </li>
             <li><span class="legal-strong">Vos tickets</span> : salon, date, numéro et statut.</li>
             <li>
-              <span class="legal-strong">Vos commandes</span> : articles, adresse de livraison et,
-              seulement si vous l’autorisez, votre position pour la livraison.
+              <span class="legal-strong">Vos commandes</span> : articles, adresse et position de
+              livraison.
             </li>
             <li>
               <span class="legal-strong">Les salons</span> : informations et photos fournies par le
@@ -134,8 +141,8 @@ import { PlatformSettingsService } from '../../shared/services/platform-settings
           <ul>
             <li>Le salon choisi voit le nom et le numéro de téléphone associés à votre ticket.</li>
             <li>
-              Pour une commande, le partenaire et le livreur de votre localité peuvent recevoir
-              votre nom, votre numéro et l’adresse de livraison.
+              Pour une commande, le partenaire le plus proche et son livreur peuvent recevoir votre
+              nom, votre numéro et l’adresse de livraison.
             </li>
             <li>
               Nos prestataires techniques : SendText (envoi des SMS), Hostinger (hébergement du

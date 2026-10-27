@@ -41,10 +41,10 @@ export interface Order {
   readonly invoiceToken?: string;
 }
 
-/** Devis du panier dans une localité (POST /api/orders/quote). */
+/** Devis du panier dans la boutique la plus proche de la position envoyée (POST /api/orders/quote). */
 export interface OrderQuote {
-  readonly localityId: number;
-  readonly localityName: string;
+  /** Boutique du partenaire le plus proche ; null : aucune boutique à portée. */
+  readonly shopId: number | null;
   readonly shopAvailable: boolean;
   readonly subtotal: number;
   readonly deliveryFee: number;

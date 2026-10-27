@@ -4,7 +4,7 @@ import { Observable, tap, catchError, of, map, finalize } from 'rxjs';
 import { Product, ProductCategory } from '../models/product';
 import { API_CONFIG } from '../../core/config/api.config';
 import { HttpErrorMessageService } from './http-error-message.service';
-import { LocalityService } from './locality.service';
+import { ShopService } from './shop.service';
 
 @Injectable({
   providedIn: 'root',
@@ -12,7 +12,7 @@ import { LocalityService } from './locality.service';
 export class ProductService {
   private readonly http = inject(HttpClient);
   private readonly errorMessages = inject(HttpErrorMessageService);
-  private readonly localityService = inject(LocalityService);
+  private readonly shopService = inject(ShopService);
   private readonly baseUrl = API_CONFIG.baseUrl;
 
   // ── State Signals ───────────────────────────────────────────
@@ -47,15 +47,15 @@ export class ProductService {
     });
   });
 
-  /** Localité dont les produits sont chargés (undefined : rien de chargé encore). */
-  private loadedLocalityId: number | null | undefined = undefined;
+  /** Boutique dont les produits sont chargés (undefined : rien de chargé encore). */
+  private loadedShopId: number | null | undefined = undefined;
 
   constructor() {
     this.loadCategories();
-    // La boutique suit la localité du compte
+    // La boutique suit la position du téléphone (partenaire le plus proche)
     effect(() => {
-      const localityId = this.localityService.shopLocalityId();
-      untracked(() => this.loadProducts(localityId !== this.loadedLocalityId));
+      const shopId = this.shopService.shopId();
+      untracked(() => this.loadProducts(shopId !== this.loadedShopId));
     });
   }
 
@@ -65,14 +65,15 @@ export class ProductService {
   }
 
   /**
-   * Produits commandables dans la localité du compte : ceux que son partenaire a en stock (le serveur
-   * impose cette localité). Sans localité (compte sans localité ouverte), la boutique est vide.
+   * Produits commandables dans la boutique la plus proche : ceux que son partenaire a en stock (le serveur
+   * applique la même règle à partir de la position). Sans position ou hors de portée, la boutique est vide.
    */
   loadProducts(forceRefresh: boolean = false): void {
-    const localityId = this.localityService.shopLocalityId();
-    if (localityId === null) {
+    const shopId = this.shopService.shopId();
+    const position = this.shopService.positionParams();
+    if (shopId === null || !position) {
       this.products.set([]);
-      this.loadedLocalityId = null;
+      this.loadedShopId = null;
       this.lastProductsFetchedAt = null;
       this.loading.set(false);
       this.isRefreshing.set(false);
@@ -80,7 +81,7 @@ export class ProductService {
     }
 
     const now = Date.now();
-    const hasData = this.products().length > 0 && this.loadedLocalityId === localityId;
+    const hasData = this.products().length > 0 && this.loadedShopId === shopId;
     const isCacheValid =
       this.lastProductsFetchedAt !== null && now - this.lastProductsFetchedAt < this.CACHE_TTL_MS;
 
@@ -97,15 +98,15 @@ export class ProductService {
 
     this.http
       .get<any[]>(`${this.baseUrl}${API_CONFIG.endpoints.products}`, {
-        params: { page: 0, size: 500 },
+        params: { page: 0, size: 500, ...position },
       })
       .pipe(
         map((items) => (Array.isArray(items) ? items : []).map((p) => this.mapApiProduct(p))),
         tap((items) => {
-          // Réponse arrivée après un changement de localité : on l'ignore
-          if (this.localityService.shopLocalityId() !== localityId) return;
+          // Réponse arrivée après un changement de boutique : on l'ignore
+          if (this.shopService.shopId() !== shopId) return;
           this.products.set(items);
-          this.loadedLocalityId = localityId;
+          this.loadedShopId = shopId;
           this.lastProductsFetchedAt = Date.now();
         }),
         catchError((err) => {
@@ -157,17 +158,20 @@ export class ProductService {
   }
 
   getProductById(id: string | null): Observable<Product | null> {
-    if (!id) return of(null);
-    return this.http.get<any>(`${this.baseUrl}${API_CONFIG.endpoints.products}/${id}`).pipe(
-      map((p) => this.mapApiProduct(p)),
-      catchError((err) => {
-        // Produit absent de la boutique de la localité du compte : simplement introuvable
-        if (err?.status === 404) return of(null);
-        console.error(`[ProductService] Error loading product ${id}:`, err);
-        this.error.set(this.errorMessages.message(err, 'Impossible de charger ce produit.'));
-        return of(this.products().find((p) => p.id === id) || null);
-      }),
-    );
+    const position = this.shopService.positionParams();
+    if (!id || !position) return of(null);
+    return this.http
+      .get<any>(`${this.baseUrl}${API_CONFIG.endpoints.products}/${id}`, { params: position })
+      .pipe(
+        map((p) => this.mapApiProduct(p)),
+        catchError((err) => {
+          // Produit absent de la boutique la plus proche : simplement introuvable
+          if (err?.status === 404) return of(null);
+          console.error(`[ProductService] Error loading product ${id}:`, err);
+          this.error.set(this.errorMessages.message(err, 'Impossible de charger ce produit.'));
+          return of(this.products().find((p) => p.id === id) || null);
+        }),
+      );
   }
 
   mapApiProduct(p: any): Product {
@@ -194,7 +198,7 @@ export class ProductService {
     };
   }
 
-  /** Produit en vente dans la localité du compte ? */
+  /** Produit en vente dans la boutique la plus proche ? */
   isAvailableHere(productId: string): boolean {
     return this.products().some((p) => p.id === productId);
   }
@@ -202,7 +206,7 @@ export class ProductService {
   upsertProduct(dto: any): void {
     if (!dto) return;
     const mapped = this.mapApiProduct(dto);
-    // Boutique d'une localité : un produit absent de chez son partenaire n'y est pas ajouté
+    // Un produit absent de chez le partenaire le plus proche n'est pas ajouté
     if (!this.isAvailableHere(mapped.id)) {
       this.loadProducts(true);
       return;

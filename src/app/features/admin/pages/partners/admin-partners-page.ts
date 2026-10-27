@@ -10,12 +10,15 @@ import {
   AdminPartner,
   PartnerFormValue,
 } from '../../services/admin-localities.service';
+import { isValidPoint } from '../../../../shared/utils/geo';
 
 const EMPTY_FORM: PartnerFormValue = {
   name: '',
   managerName: '',
   phone: '',
   address: '',
+  latitude: null,
+  longitude: null,
   localityId: null,
   courierName: '',
   courierPhone: '',
@@ -33,7 +36,8 @@ const EMPTY_FORM: PartnerFormValue = {
           <h1>Partenaires boutique</h1>
           <p>
             Un partenaire par localité : SansFile revend ses produits au prix SansFile, et son
-            livreur livre les clients de la localité.
+            livreur livre les clients. Chaque client voit la boutique du partenaire le plus proche
+            de lui : la position de la boutique est indispensable.
           </p>
         </div>
         <button type="button" class="admin-btn admin-btn--primary" (click)="openCreate()">
@@ -79,6 +83,11 @@ const EMPTY_FORM: PartnerFormValue = {
                     >
                     @if (p.managerName) {
                       <div class="sub">{{ p.managerName }}</div>
+                    }
+                    @if (p.latitude === null || p.longitude === null) {
+                      <app-admin-badge variant="warning"
+                        >Position manquante : invisible des clients</app-admin-badge
+                      >
                     }
                   </td>
                   <td>{{ p.localityName }}</td>
@@ -231,6 +240,40 @@ const EMPTY_FORM: PartnerFormValue = {
               placeholder="Ex : Marché central, en face de la pharmacie"
             />
           </div>
+          <div class="admin-form-group">
+            <label for="partner-latitude">Position de la boutique *</label>
+            <div class="position-row">
+              <input
+                id="partner-latitude"
+                name="latitude"
+                type="number"
+                step="any"
+                [(ngModel)]="form.latitude"
+                placeholder="Latitude (ex : 14.7167)"
+              />
+              <input
+                name="longitude"
+                type="number"
+                step="any"
+                [(ngModel)]="form.longitude"
+                aria-label="Longitude"
+                placeholder="Longitude (ex : -17.2667)"
+              />
+              <button
+                type="button"
+                class="admin-btn admin-btn--sm admin-btn--outline"
+                [disabled]="locating()"
+                (click)="useMyPosition()"
+              >
+                {{ locating() ? 'Localisation…' : 'Ma position actuelle' }}
+              </button>
+            </div>
+            <span class="form-hint">
+              Sur place, touchez « Ma position actuelle », ou collez les coordonnées de Google Maps
+              (appui long sur la boutique). Les clients voient la boutique du partenaire le plus
+              proche d'eux.
+            </span>
+          </div>
           <div class="admin-form-row">
             <div class="admin-form-group">
               <label for="courier-name">Livreur habituel</label>
@@ -297,6 +340,22 @@ const EMPTY_FORM: PartnerFormValue = {
       color: var(--text-secondary, #64748b);
     }
 
+    .position-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      input {
+        flex: 1 1 140px;
+        min-width: 0;
+      }
+    }
+
+    .form-hint {
+      font-size: 0.8125rem;
+      color: var(--text-secondary, #64748b);
+    }
+
     .nowrap {
       white-space: nowrap;
     }
@@ -345,6 +404,7 @@ export class AdminPartnersPage implements OnInit {
   protected readonly editing = signal<AdminPartner | null>(null);
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
+  protected readonly locating = signal(false);
   protected form: PartnerFormValue = { ...EMPTY_FORM };
 
   /** Un partenaire par localité : seules les localités libres (et la sienne) sont proposées. */
@@ -389,6 +449,8 @@ export class AdminPartnersPage implements OnInit {
       managerName: partner.managerName ?? '',
       phone: partner.phone,
       address: partner.address ?? '',
+      latitude: partner.latitude,
+      longitude: partner.longitude,
       localityId: partner.localityId,
       courierName: partner.courierName ?? '',
       courierPhone: partner.courierPhone ?? '',
@@ -398,9 +460,38 @@ export class AdminPartnersPage implements OnInit {
     this.formOpen.set(true);
   }
 
+  /** Position du téléphone de l'administrateur, sur place à la boutique. */
+  protected useMyPosition(): void {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      this.formError.set("La géolocalisation n'est pas disponible sur cet appareil.");
+      return;
+    }
+    this.locating.set(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this.locating.set(false);
+        this.form.latitude = Number(pos.coords.latitude.toFixed(6));
+        this.form.longitude = Number(pos.coords.longitude.toFixed(6));
+      },
+      () => {
+        this.locating.set(false);
+        this.formError.set(
+          'Position introuvable : autorisez la localisation, ou saisissez les coordonnées.',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  }
+
   protected save(): void {
     if (!this.form.name.trim() || !this.form.phone.trim() || !this.form.localityId) {
       this.formError.set('Renseignez le nom, le numéro WhatsApp et la localité du partenaire.');
+      return;
+    }
+    if (!isValidPoint(this.form.latitude, this.form.longitude)) {
+      this.formError.set(
+        'Indiquez la position de la boutique : les clients voient celle du partenaire le plus proche.',
+      );
       return;
     }
     this.saving.set(true);

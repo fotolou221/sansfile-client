@@ -13,7 +13,6 @@ export interface AdminLocality {
   partnerName: string | null;
   partnerActive: boolean;
   salonsCount: number;
-  usersCount: number;
   agentsCount: number;
   ordersCount: number;
   createdDate: string | null;
@@ -25,18 +24,15 @@ export interface LocalityFormValue {
   active: boolean;
 }
 
-/** Zone demandée par des utilisateurs dont la localité n'existe pas encore. */
-export interface RequestedZone {
-  name: string;
-  count: number;
-}
-
 export interface AdminPartner {
   id: number;
   name: string;
   managerName: string | null;
   phone: string;
   address: string | null;
+  /** Position de la boutique : les clients voient celle du partenaire le plus proche d'eux. */
+  latitude: number | null;
+  longitude: number | null;
   localityId: number;
   localityName: string;
   active: boolean;
@@ -52,6 +48,8 @@ export interface PartnerFormValue {
   managerName: string;
   phone: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   localityId: number | null;
   courierName: string;
   courierPhone: string;
@@ -137,10 +135,6 @@ export class AdminLocalitiesService {
     return this.http
       .delete<void>(`${this.baseUrl}/localities/${id}`)
       .pipe(tap(() => this.localities.update((list) => list.filter((l) => l.id !== id))));
-  }
-
-  requestedZones(): Observable<RequestedZone[]> {
-    return this.http.get<RequestedZone[]>(`${this.baseUrl}/localities/requested`);
   }
 
   // ── Partenaires ─────────────────────────────────────────────
@@ -256,6 +250,8 @@ export class AdminLocalitiesService {
       managerName: form.managerName.trim(),
       phone: form.phone.trim(),
       address: form.address.trim(),
+      latitude: form.latitude,
+      longitude: form.longitude,
       localityId: form.localityId,
       courierName: form.courierName.trim(),
       courierPhone: form.courierPhone.trim(),

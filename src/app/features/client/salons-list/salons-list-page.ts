@@ -9,9 +9,10 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { StatusBadge } from '../../../shared/components/status-badge/status-badge';
 import { SalonService } from '../../../shared/services/salon.service';
 import { FavoritesService } from '../../../shared/services/favorites.service';
-import { LocalityService } from '../../../shared/services/locality.service';
-import { LocalityPickerSheet } from '../../../shared/components/locality-picker/locality-picker-sheet';
+import { UserPositionService } from '../../../shared/services/user-position.service';
+import { PositionRequired } from '../../../shared/components/position-required/position-required';
 import { Salon } from '../../../shared/models/salon';
+import { formatDistance } from '../../../shared/utils/geo';
 
 function normalize(value: string): string {
   return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
@@ -28,7 +29,7 @@ function normalize(value: string): string {
     EmptyStateComponent,
     ErrorStateComponent,
     StatusBadge,
-    LocalityPickerSheet,
+    PositionRequired,
   ],
   template: `
     <app-client-layout activeNav="home">
@@ -40,30 +41,22 @@ function normalize(value: string): string {
       <div class="salons-page">
         <!-- Intro Hero Section -->
         <section class="salons-page__hero">
-          <h1 class="salons-page__hero-title">
-            {{
-              localityService.viewingAll()
-                ? 'Tous nos salons'
-                : 'Salons à ' + localityService.viewedLabel()
-            }}
-          </h1>
-          <button
-            type="button"
-            class="salons-page__locality-btn"
-            (click)="localityService.openPicker()"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            <span>Changer de localité</span>
-          </button>
+          <h1 class="salons-page__hero-title">Salons autour de vous</h1>
+          @if (positions.ready()) {
+            <button type="button" class="salons-page__locality-btn" (click)="positions.locate()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <span>Actualiser ma position</span>
+            </button>
+          }
         </section>
 
         <!-- Search Bar -->
@@ -71,11 +64,14 @@ function normalize(value: string): string {
           <app-search-bar
             [value]="searchQuery()"
             (valueChange)="onSearchChange($event)"
-            placeholder="Rechercher un salon (toutes localités)…"
+            placeholder="Rechercher un salon, un quartier…"
           />
         </section>
 
-        @if (salonService.loading()) {
+        @if (!positions.ready() && !searchQuery()) {
+          <!-- Position d'abord : les salons sont triés du plus proche au plus loin -->
+          <app-position-required />
+        } @else if (salonService.loading()) {
           <div class="salons-page__skeleton-wrap">
             <app-skeleton-loader type="salon" [count]="4" />
           </div>
@@ -94,14 +90,6 @@ function normalize(value: string): string {
                 actionLabel="Effacer la recherche"
                 (action)="clearSearch()"
               />
-            } @else if (!localityService.viewingAll()) {
-              <app-empty-state
-                icon="search"
-                [title]="'Pas encore de salon à ' + localityService.viewedLabel()"
-                description="Les salons de cette localité arrivent bientôt. En attendant, découvrez ceux des autres localités."
-                actionLabel="Voir toutes les localités"
-                (action)="localityService.setViewed('all')"
-              />
             } @else {
               <app-empty-state
                 icon="search"
@@ -115,7 +103,7 @@ function normalize(value: string): string {
               <section class="salons-page__featured-section">
                 <div class="salons-page__section-header">
                   <div class="salons-page__title-group">
-                    <h2 class="salons-page__section-title">Salons recommandés</h2>
+                    <h2 class="salons-page__section-title">Les plus proches</h2>
                   </div>
                   <span class="salons-page__section-pill">{{ featuredSalons().length }}</span>
                 </div>
@@ -209,7 +197,7 @@ function normalize(value: string): string {
               <div class="salons-page__section-header">
                 <div class="salons-page__title-group">
                   <h2 class="salons-page__section-title">
-                    {{ searchQuery() ? 'Résultats trouvés' : 'Tous les salons' }}
+                    {{ searchQuery() ? 'Résultats trouvés' : 'Du plus proche au plus loin' }}
                   </h2>
                 </div>
                 <span class="salons-page__section-pill"
@@ -302,14 +290,12 @@ function normalize(value: string): string {
         }
       </div>
     </app-client-layout>
-
-    <app-locality-picker-sheet />
   `,
   styleUrl: './salons-list-page.scss',
 })
 export class SalonsListPage {
   protected readonly salonService = inject(SalonService);
-  protected readonly localityService = inject(LocalityService);
+  protected readonly positions = inject(UserPositionService);
   private readonly favoritesService = inject(FavoritesService);
 
   readonly defaultAvatar = 'images/salons/king-barber-avatar.png';
@@ -317,37 +303,33 @@ export class SalonsListPage {
 
   protected readonly searchQuery = signal<string>('');
 
-  /** Salons de la localité regardée ; une recherche porte sur toutes les localités. */
+  /** Tous les salons, du plus proche au plus loin ; une recherche porte sur tous. */
   protected readonly filteredSalons = computed(() => {
     const q = normalize(this.searchQuery());
     const list = this.salonService.salons();
-    if (!q) return this.salonService.inViewedLocality(list);
-    return list.filter((s) =>
-      [s.name, s.location, s.district, this.salonService.localityNameOf(s)].some((v) =>
-        normalize(v ?? '').includes(q),
-      ),
+    return this.salonService.byDistance(
+      q
+        ? list.filter((s) =>
+            [s.name, s.location, s.district, s.localityName].some((v) =>
+              normalize(v ?? '').includes(q),
+            ),
+          )
+        : list,
     );
   });
 
-  constructor() {
-    void this.localityService.loadLocalities();
-  }
-
-  /** « Rufisque · Médina » : localité du salon, puis son quartier. */
+  /** « à 1,2 km · Médina » : distance du téléphone, puis le quartier du salon. */
   protected locationLabel(salon: Salon): string {
-    const locality = this.salonService.localityNameOf(salon);
-    const district = salon.district || salon.location;
-    if (locality && district && normalize(locality) !== normalize(district)) {
-      return `${locality} · ${district}`;
-    }
-    return locality || district || '';
+    const km = this.salonService.distanceOf(salon);
+    const place = salon.district || salon.location || this.salonService.localityNameOf(salon);
+    const distance = km === null ? null : formatDistance(km);
+    return [distance, place].filter(Boolean).join(' · ');
   }
 
-  // Featured salons: open first or top ranked
+  /** Les 5 salons les plus proches, en tête de page. */
   protected readonly featuredSalons = computed(() => {
     const all = this.filteredSalons();
     if (all.length <= 2) return all;
-    // Highlight first 5 salons
     return all.slice(0, 5);
   });
 

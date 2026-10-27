@@ -18,12 +18,15 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { ProductService } from '../../../shared/services/product.service';
 import { CartService } from '../../../shared/services/cart.service';
-import { LocalityService } from '../../../shared/services/locality.service';
+import { ShopService } from '../../../shared/services/shop.service';
+import { UserPositionService } from '../../../shared/services/user-position.service';
 import { CategoryStrip } from '../../../shared/components/category-strip/category-strip';
+import { PositionRequired } from '../../../shared/components/position-required/position-required';
+import { formatDistance } from '../../../shared/utils/geo';
 
 /**
- * Tous les produits de la boutique (localité du compte) : recherche, catégories et affichage progressif
- * par 10 au fil du défilement. Recherche et catégorie sont partagées avec l'accueil de la boutique.
+ * Tous les produits de la boutique la plus proche : recherche, catégories et affichage progressif par 10
+ * au fil du défilement. Recherche et catégorie sont partagées avec l'accueil de la boutique.
  */
 @Component({
   selector: 'app-all-products-page',
@@ -37,6 +40,7 @@ import { CategoryStrip } from '../../../shared/components/category-strip/categor
     ErrorStateComponent,
     RouterLink,
     CategoryStrip,
+    PositionRequired,
   ],
   template: `
     <app-client-layout activeNav="shop" [hasHeaderSlot]="true">
@@ -70,11 +74,16 @@ import { CategoryStrip } from '../../../shared/components/category-strip/categor
       </div>
 
       <div class="catalog">
-        @if (shopClosed()) {
+        @if (!positions.ready()) {
+          <app-position-required
+            title="La boutique près de chez vous"
+            text="Autorisez votre position pour voir les produits de la boutique SansFile la plus proche, livrés chez vous."
+          />
+        } @else if (shopClosed()) {
           <app-empty-state
             icon="shop"
-            title="La boutique n'est pas disponible dans votre localité"
-            description="Retrouvez les informations sur la page d'accueil de la boutique."
+            title="La boutique n'est pas encore disponible près de chez vous"
+            description="Elle ouvrira dès qu'un partenaire SansFile sera installé dans votre zone."
             actionLabel="Retour à la boutique"
             actionRoute="/client/boutique"
           />
@@ -110,7 +119,7 @@ import { CategoryStrip } from '../../../shared/components/category-strip/categor
               [description]="
                 isFiltered()
                   ? 'Aucun article ne correspond à votre recherche.'
-                  : 'Les produits de votre localité arrivent bientôt.'
+                  : 'Les produits de la boutique la plus proche arrivent bientôt.'
               "
               [actionLabel]="isFiltered() ? 'Réinitialiser les filtres' : undefined"
               (action)="resetFilters()"
@@ -155,7 +164,8 @@ import { CategoryStrip } from '../../../shared/components/category-strip/categor
 export class AllProductsPage implements OnDestroy {
   protected readonly productService = inject(ProductService);
   protected readonly cartService = inject(CartService);
-  private readonly localityService = inject(LocalityService);
+  protected readonly positions = inject(UserPositionService);
+  private readonly shopService = inject(ShopService);
 
   protected readonly pageSize = 10;
   private readonly limit = signal(this.pageSize);
@@ -172,16 +182,15 @@ export class AllProductsPage implements OnDestroy {
   );
 
   protected readonly subtitle = computed(() => {
-    const name = this.localityService.shopLocalityName();
-    return name ? `Livraison à ${name}` : undefined;
+    const shop = this.shopService.shop();
+    if (!shop?.available) return undefined;
+    return shop.distanceKm === null
+      ? 'Boutique la plus proche'
+      : `Boutique la plus proche, ${formatDistance(shop.distanceKm)}`;
   });
 
-  /** Compte sans localité, ou localité sans partenaire : rien à afficher ici. */
-  protected readonly shopClosed = computed(() => {
-    if (this.localityService.shopLocalityId() === null) return true;
-    const locality = this.localityService.shopLocality();
-    return !!locality && !locality.shopAvailable;
-  });
+  /** Aucune boutique à portée de la position du téléphone : rien à afficher ici. */
+  protected readonly shopClosed = computed(() => this.shopService.shop()?.available === false);
 
   /** Le repère du bas de liste apparaît et disparaît avec la liste : on l'observe à chaque fois. */
   @ViewChild('sentinel')
@@ -191,10 +200,6 @@ export class AllProductsPage implements OnDestroy {
   }
 
   constructor() {
-    void this.localityService.loadLocalities();
-    if (!this.localityService.account()) {
-      void this.localityService.loadAccount();
-    }
     this.productService.loadAll();
     // Nouvelle recherche ou catégorie : on repart des 10 premiers
     effect(() => {

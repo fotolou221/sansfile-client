@@ -2,12 +2,10 @@ import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { FavoritesService } from '../../services/favorites.service';
 import { NotificationService } from '../../services/notification.service';
-import { LocalityService } from '../../services/locality.service';
-import { LocalityPickerSheet } from '../locality-picker/locality-picker-sheet';
+import { UserPositionService } from '../../services/user-position.service';
 
 @Component({
   selector: 'app-location-header',
-  imports: [LocalityPickerSheet],
   template: `
     <header class="location-header">
       @if (showSalonToggle) {
@@ -40,7 +38,7 @@ import { LocalityPickerSheet } from '../locality-picker/locality-picker-sheet';
           class="location-header__selector"
           (click)="onLocationClick()"
           type="button"
-          aria-label="Changer de localité"
+          aria-label="Actualiser ma position"
         >
           <span class="location-header__pin-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -49,12 +47,7 @@ import { LocalityPickerSheet } from '../locality-picker/locality-picker-sheet';
               />
             </svg>
           </span>
-          <span class="location-header__text">{{ location || localityService.viewedLabel() }}</span>
-          <span class="location-header__chevron" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </span>
+          <span class="location-header__text">{{ location || positionLabel }}</span>
         </button>
       } @else {
         <div class="location-header__spacer"></div>
@@ -116,10 +109,6 @@ import { LocalityPickerSheet } from '../locality-picker/locality-picker-sheet';
         </button>
       </div>
     </header>
-
-    @if (showLocation && !showSalonToggle) {
-      <app-locality-picker-sheet />
-    }
   `,
   styleUrl: './location-header.scss',
 })
@@ -127,14 +116,9 @@ export class LocationHeader {
   private readonly favoritesService = inject(FavoritesService);
   private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
-  protected readonly localityService = inject(LocalityService);
+  private readonly positions = inject(UserPositionService);
 
-  constructor() {
-    // Noms des localités pour le libellé de l'en-tête (liste mise en cache)
-    void this.localityService.loadLocalities();
-  }
-
-  /** Libellé imposé ; par défaut, la localité regardée (choisie dans la feuille des localités). */
+  /** Libellé imposé ; par défaut, l'état de la position du téléphone (« Autour de moi »). */
   @Input() location?: string;
   @Input() showLocation = true;
   @Input() hasNotification = true;
@@ -197,11 +181,23 @@ export class LocationHeader {
     this.salonToggleClick.emit();
   }
 
+  protected get positionLabel(): string {
+    switch (this.positions.status()) {
+      case 'ready':
+        return 'Autour de moi';
+      case 'locating':
+        return 'Localisation…';
+      default:
+        return 'Activer ma position';
+    }
+  }
+
+  /** Remesure la position (salons et boutique se remettent à jour). */
   protected onLocationClick(): void {
     if (this.locationClick.observed) {
       this.locationClick.emit();
     } else {
-      this.localityService.openPicker();
+      void this.positions.locate();
     }
   }
 }

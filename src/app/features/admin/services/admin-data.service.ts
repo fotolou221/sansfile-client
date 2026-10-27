@@ -46,9 +46,6 @@ export interface AdminClientUser {
   name: string;
   phone: string;
   district: string;
-  /** Localité choisie par l'utilisateur dans l'application (ou zone demandée pas encore ouverte). */
-  localityId?: number | null;
-  requestedLocality?: string | null;
   avatarUrl?: string;
   role?: 'client' | 'coiffeur' | 'admin';
   ticketsCount: number;
@@ -1229,8 +1226,6 @@ export class AdminDataService {
                     `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.login || 'Utilisateur',
                   phone: u.phone || u.login || '+221 77 000 00 00',
                   district: u.district || '',
-                  localityId: u.localityId ?? null,
-                  requestedLocality: u.requestedLocality ?? null,
                   avatarUrl: u.imageUrl,
                   role: u.authorities?.includes('ROLE_ADMIN')
                     ? 'admin'

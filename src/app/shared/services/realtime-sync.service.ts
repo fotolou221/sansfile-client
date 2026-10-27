@@ -8,7 +8,7 @@ import { NotificationService } from './notification.service';
 import { ProductService } from './product.service';
 import { OrderService } from './order.service';
 import { PlatformSettingsService } from './platform-settings.service';
-import { LocalityService } from './locality.service';
+import { ShopService } from './shop.service';
 import { AdminLocalitiesService } from '../../features/admin/services/admin-localities.service';
 import { Salon } from '../models/salon';
 
@@ -31,7 +31,7 @@ export class RealtimeSyncService {
   private readonly productService = inject(ProductService);
   private readonly orderService = inject(OrderService);
   private readonly platformSettings = inject(PlatformSettingsService);
-  private readonly localityService = inject(LocalityService);
+  private readonly shopService = inject(ShopService);
   private readonly adminLocalities = inject(AdminLocalitiesService);
 
   private eventSource: EventSource | null = null;
@@ -219,11 +219,12 @@ export class RealtimeSyncService {
         });
       });
 
-      // ── Localités et boutiques par localité ───────────────
-      // Le flux ne transporte que l'identifiant : chacun recharge la liste publique ou sa boutique
+      // ── Localités (administration) et boutiques ───────────
+      // Le flux ne transporte que l'identifiant : chacun recharge ce qui le concerne
       this.eventSource.addEventListener('LOCALITIES_UPDATED', () => {
         this.ngZone.run(() => {
-          void this.localityService.loadLocalities(true);
+          // Frais de livraison ou localité désactivée : la boutique la plus proche peut changer
+          void this.shopService.refresh();
           if (this.adminLocalities.localitiesLoaded()) {
             this.adminLocalities.loadLocalities().subscribe({ error: () => {} });
           }
@@ -232,15 +233,16 @@ export class RealtimeSyncService {
 
       this.eventSource.addEventListener('SHOP_UPDATED', (e: MessageEvent) => {
         this.ngZone.run(() => {
-          let localityId: number | null = null;
+          let shopId: number | null = null;
           try {
-            localityId = Number(JSON.parse(e.data)?.localityId) || null;
+            shopId = Number(JSON.parse(e.data)?.localityId) || null;
           } catch {
             // identifiant illisible : on recharge par prudence
           }
-          // Boutique ouverte / fermée, produits ajoutés ou retirés chez le partenaire
-          void this.localityService.loadLocalities(true);
-          if (localityId === null || localityId === this.localityService.shopLocalityId()) {
+          // Partenaire ouvert, fermé ou déplacé : la boutique la plus proche peut changer
+          void this.shopService.refresh();
+          // Produits ajoutés ou retirés chez le partenaire de cette boutique
+          if (shopId === null || shopId === this.shopService.shopId()) {
             this.productService.loadProducts(true);
           }
         });

@@ -1,19 +1,21 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, effect, inject, OnInit, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ClientLayout } from '../../../shared/components/client-layout/client-layout';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { PositionRequired } from '../../../shared/components/position-required/position-required';
 import { CartService } from '../../../shared/services/cart.service';
 import { OrderService } from '../../../shared/services/order.service';
-import { LocalityService } from '../../../shared/services/locality.service';
+import { UserPositionService } from '../../../shared/services/user-position.service';
 import { HttpErrorMessageService } from '../../../shared/services/http-error-message.service';
 import { AuthSessionService } from '../../auth/auth-session.service';
 import { CartItem } from '../../../shared/models/product';
 import { OrderQuote } from '../../../shared/models/order';
+import { GeoPoint } from '../../../shared/utils/geo';
 
 @Component({
   selector: 'app-order-confirmation-page',
-  imports: [ClientLayout, PageHeader, FormsModule],
+  imports: [ClientLayout, PageHeader, FormsModule, PositionRequired],
   template: `
     <app-client-layout [showBottomNav]="false" [hasCustomFooter]="true">
       <app-page-header
@@ -23,6 +25,14 @@ import { OrderQuote } from '../../../shared/models/order';
       />
 
       <div class="order-confirm-page__content">
+        @if (positionMissing()) {
+          <!-- La boutique la plus proche livre : sa position est nécessaire -->
+          <app-position-required
+            title="Où faut-il vous livrer ?"
+            text="Autorisez votre position : la boutique la plus proche de chez vous prépare et livre votre commande."
+          />
+        }
+
         <section class="order-confirm-page__hero">
           <div class="order-confirm-page__hero-icon" aria-hidden="true">
             <svg
@@ -74,9 +84,7 @@ import { OrderQuote } from '../../../shared/models/order';
             <span>{{ formatPrice(quote()?.subtotal ?? cartService.subtotal()) }} FCFA</span>
           </div>
           <div class="order-confirm-page__line">
-            <span
-              >Livraison à {{ quote()?.localityName || localityService.shopLocalityName() }}</span
-            >
+            <span>Livraison</span>
             <span>{{ formatPrice(quote()?.deliveryFee ?? cartService.deliveryFee()) }} FCFA</span>
           </div>
 
@@ -120,7 +128,9 @@ import { OrderQuote } from '../../../shared/models/order';
         <button
           type="button"
           class="order-confirm-page__validate-btn"
-          [disabled]="submitting() || orderValidated() || quoteLoading() || backToCart()"
+          [disabled]="
+            submitting() || orderValidated() || quoteLoading() || backToCart() || positionMissing()
+          "
           (click)="validateOrder()"
         >
           @if (submitting()) {
@@ -181,7 +191,7 @@ export class OrderConfirmationPage implements OnInit {
   private readonly router = inject(Router);
   protected readonly cartService = inject(CartService);
   protected readonly orderService = inject(OrderService);
-  protected readonly localityService = inject(LocalityService);
+  private readonly positions = inject(UserPositionService);
   private readonly auth = inject(AuthSessionService);
   private readonly errorMessages = inject(HttpErrorMessageService);
 
@@ -194,6 +204,19 @@ export class OrderConfirmationPage implements OnInit {
   protected readonly quoteLoading = signal(true);
   /** Panier à corriger (article indisponible, boutique fermée) : retour au panier proposé. */
   protected readonly backToCart = signal(false);
+  /** Position de livraison : la commande va au partenaire le plus proche de ce point. */
+  private readonly deliveryPoint = signal<GeoPoint | null>(null);
+  protected readonly positionMissing = signal(false);
+
+  constructor() {
+    // Position autorisée depuis cette page : le devis repart de là
+    effect(() => {
+      const ready = this.positions.ready();
+      untracked(() => {
+        if (ready && this.positionMissing()) void this.prepare();
+      });
+    });
+  }
 
   ngOnInit(): void {
     const cartItems = this.cartService.cartItems();
@@ -202,25 +225,44 @@ export class OrderConfirmationPage implements OnInit {
       return;
     }
     this.items.set([...cartItems]);
-    this.loadQuote();
+    void this.prepare();
+  }
 
-    // Active la géolocalisation pour enregistrer automatiquement la position du client
-    if (
-      !this.cartService.deliveryCoords() &&
-      typeof navigator !== 'undefined' &&
-      navigator.geolocation
-    ) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          this.cartService.deliveryCoords.set({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-        },
-        () => {},
-        { enableHighAccuracy: true, timeout: 6000 },
-      );
+  /** Position de livraison (la plus précise possible), puis devis de la boutique la plus proche. */
+  private async prepare(): Promise<void> {
+    this.quoteLoading.set(true);
+    const point = await this.resolveDeliveryPoint();
+    this.deliveryPoint.set(point);
+    this.positionMissing.set(point === null);
+    if (point === null) {
+      this.quoteLoading.set(false);
+      return;
     }
+    this.loadQuote(point);
+  }
+
+  /** Position précise du téléphone pour le livreur ; à défaut, la dernière position connue. */
+  private async resolveDeliveryPoint(): Promise<GeoPoint | null> {
+    const captured = this.cartService.deliveryCoords();
+    if (captured) return { latitude: captured.lat, longitude: captured.lng };
+    if (typeof navigator !== 'undefined' && navigator.geolocation && this.positions.ready()) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 6000,
+          }),
+        );
+        this.cartService.deliveryCoords.set({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+        return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      } catch {
+        // GPS lent ou refusé : dernière position connue
+      }
+    }
+    return this.positions.position();
   }
 
   protected formatPrice(val: number): string {
@@ -232,15 +274,17 @@ export class OrderConfirmationPage implements OnInit {
   }
 
   /** Acompte et part du livreur calculés par le serveur (prix de gros jamais connus du client). */
-  private loadQuote(): void {
+  private loadQuote(point: GeoPoint): void {
     this.quoteLoading.set(true);
-    this.orderService.quote(this.items()).subscribe({
+    this.errorMsg.set(null);
+    this.backToCart.set(false);
+    this.orderService.quote(this.items(), point).subscribe({
       next: (q) => {
         this.quoteLoading.set(false);
         this.quote.set(q);
         if (!q.shopAvailable) {
           this.backToCart.set(true);
-          this.errorMsg.set(`La boutique n'est pas encore disponible à ${q.localityName}.`);
+          this.errorMsg.set("La boutique n'est pas encore disponible près de chez vous.");
         } else if (q.unavailableProductIds.length > 0) {
           const titles = this.items()
             .filter((i) => q.unavailableProductIds.includes(Number(i.product.id)))
@@ -248,7 +292,7 @@ export class OrderConfirmationPage implements OnInit {
             .join(', ');
           this.backToCart.set(true);
           this.errorMsg.set(
-            `${titles} : pas disponible à ${q.localityName} pour le moment. Retirez-le du panier pour continuer.`,
+            `${titles} : pas disponible dans la boutique la plus proche de vous pour le moment. Retirez-le du panier pour continuer.`,
           );
         } else if (q.stockShortages?.length) {
           const details = q.stockShortages
@@ -259,7 +303,7 @@ export class OrderConfirmationPage implements OnInit {
             .join(', ');
           this.backToCart.set(true);
           this.errorMsg.set(
-            `Il ne reste que ${details} à ${q.localityName}. Réduisez la quantité dans le panier pour continuer.`,
+            `Il ne reste que ${details} dans la boutique la plus proche. Réduisez la quantité dans le panier pour continuer.`,
           );
         }
       },
@@ -273,47 +317,21 @@ export class OrderConfirmationPage implements OnInit {
     });
   }
 
-  private buildDelivery() {
+  private buildDelivery(point: GeoPoint) {
     const user = this.auth.currentUser();
-    const coords = this.cartService.deliveryCoords();
-    const notes = coords
-      ? `Position GPS: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`
-      : undefined;
     return {
       address: undefined,
-      district: this.quote()?.localityName ?? this.localityService.shopLocalityName() ?? undefined,
       customerName: user && user.id !== 'guest' ? user.name : undefined,
       customerPhone: user && user.id !== 'guest' ? user.phone : undefined,
-      notes,
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
+      notes: `Position GPS: ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}`,
+      latitude: point.latitude,
+      longitude: point.longitude,
     };
   }
 
-  protected async validateOrder(): Promise<void> {
-    if (this.submitting() || this.items().length === 0 || this.orderValidated()) return;
-
-    // Tente de récupérer les coordonnées en direct si pas encore capturées
-    if (
-      !this.cartService.deliveryCoords() &&
-      typeof navigator !== 'undefined' &&
-      navigator.geolocation
-    ) {
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 2500,
-          });
-        });
-        this.cartService.deliveryCoords.set({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
-      } catch {
-        // En cas de refus ou timeout, on continue avec la position par défaut
-      }
-    }
+  protected validateOrder(): void {
+    const point = this.deliveryPoint();
+    if (this.submitting() || this.items().length === 0 || this.orderValidated() || !point) return;
 
     this.submitting.set(true);
     this.errorMsg.set(null);
@@ -325,7 +343,7 @@ export class OrderConfirmationPage implements OnInit {
         this.cartService.deliveryFee(),
         this.cartService.totalPrice(),
         'whatsapp',
-        this.buildDelivery(),
+        this.buildDelivery(point),
       )
       .subscribe({
         next: (order) => {

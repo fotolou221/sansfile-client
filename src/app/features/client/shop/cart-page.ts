@@ -1,15 +1,16 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ClientLayout } from '../../../shared/components/client-layout/client-layout';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
-import { GeoLocationModal } from '../../../shared/components/geolocation-modal/geolocation-modal';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { PositionRequired } from '../../../shared/components/position-required/position-required';
 import { CartService } from '../../../shared/services/cart.service';
-import { LocalityService } from '../../../shared/services/locality.service';
+import { ShopService } from '../../../shared/services/shop.service';
+import { UserPositionService } from '../../../shared/services/user-position.service';
 
 @Component({
   selector: 'app-cart-page',
-  imports: [ClientLayout, PageHeader, GeoLocationModal, EmptyStateComponent],
+  imports: [ClientLayout, PageHeader, EmptyStateComponent, PositionRequired],
   template: `
     <app-client-layout [showBottomNav]="false" [hasCustomFooter]="true">
       <!-- Fixed Header Slot -->
@@ -42,6 +43,12 @@ import { LocalityService } from '../../../shared/services/locality.service';
 
       <!-- Main Content -->
       <div class="cart-page__content">
+        @if (cartService.cartItems().length > 0 && !positions.ready()) {
+          <app-position-required
+            title="Où faut-il vous livrer ?"
+            text="Autorisez votre position : la boutique la plus proche de chez vous prépare et livre votre commande."
+          />
+        }
         @if (cartService.cartItems().length > 0) {
           <!-- Cart Items List -->
           <div class="cart-page__list">
@@ -59,9 +66,7 @@ import { LocalityService } from '../../../shared/services/locality.service';
                     >{{ formatPrice(item.product.price) }} FCFA</span
                   >
                   @if (isUnavailable(item.product.id)) {
-                    <span class="cart-item-card__unavailable">
-                      Indisponible à {{ localityService.shopLocalityName() || 'votre localité' }}
-                    </span>
+                    <span class="cart-item-card__unavailable">Indisponible près de chez vous</span>
                   }
 
                   <div class="cart-item-card__stepper">
@@ -123,8 +128,8 @@ import { LocalityService } from '../../../shared/services/locality.service';
           @if (cartService.unavailableItems().length > 0) {
             <div class="cart-page__alert" role="alert">
               <span>
-                {{ cartService.unavailableItems().length }} article(s) ne sont pas livrables à
-                {{ localityService.shopLocalityName() || 'votre localité' }}.
+                {{ cartService.unavailableItems().length }} article(s) ne sont pas disponibles dans
+                la boutique la plus proche de vous.
               </span>
               <button type="button" (click)="removeUnavailable()">Les retirer</button>
             </div>
@@ -138,7 +143,7 @@ import { LocalityService } from '../../../shared/services/locality.service';
             </div>
 
             <div class="cart-summary__row">
-              <span>Livraison à {{ localityService.shopLocalityName() || 'votre localité' }}</span>
+              <span>Livraison</span>
               <strong>{{ formatPrice(cartService.deliveryFee()) }} FCFA</strong>
             </div>
 
@@ -166,40 +171,26 @@ import { LocalityService } from '../../../shared/services/locality.service';
             type="button"
             class="cart-page__continue-btn"
             [disabled]="!canCheckout()"
-            (click)="openGeoModal()"
+            (click)="proceedToConfirmation()"
           >
             Continuer la commande
           </button>
         </div>
       }
     </app-client-layout>
-
-    <!-- Geolocation Permission Modal -->
-    <app-geolocation-modal
-      [isOpen]="showGeoModal()"
-      (authorize)="onAuthorizeGeo()"
-      (later)="proceedToConfirmation()"
-    />
   `,
   styleUrl: './cart-page.scss',
 })
 export class CartPage {
   private readonly router = inject(Router);
   protected readonly cartService = inject(CartService);
-  protected readonly localityService = inject(LocalityService);
+  protected readonly positions = inject(UserPositionService);
+  private readonly shopService = inject(ShopService);
 
-  protected readonly showGeoModal = signal(false);
-
-  /** Commande possible : localité avec boutique ouverte, aucun article indisponible chez son partenaire. */
+  /** Commande possible : boutique à portée, aucun article indisponible chez son partenaire. */
   protected readonly canCheckout = computed(
-    () =>
-      this.localityService.shopLocality()?.shopAvailable === true &&
-      this.cartService.unavailableItems().length === 0,
+    () => this.shopService.shopId() !== null && this.cartService.unavailableItems().length === 0,
   );
-
-  constructor() {
-    void this.localityService.loadLocalities();
-  }
 
   protected isUnavailable(productId: string): boolean {
     return this.cartService.unavailableItems().some((item) => item.product.id === productId);
@@ -219,32 +210,8 @@ export class CartPage {
     this.cartService.clearCart();
   }
 
-  protected openGeoModal(): void {
-    this.showGeoModal.set(true);
-  }
-
-  /** Autoriser la géoloc = uniquement capter la position pour pré-remplir la livraison.
-   *  Cela NE valide PAS la commande. */
-  protected onAuthorizeGeo(): void {
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          this.cartService.deliveryCoords.set({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-          this.proceedToConfirmation();
-        },
-        () => this.proceedToConfirmation(),
-        { enableHighAccuracy: true, timeout: 8000 },
-      );
-    } else {
-      this.proceedToConfirmation();
-    }
-  }
-
+  /** La confirmation prend la position précise de livraison avant de calculer le paiement. */
   protected proceedToConfirmation(): void {
-    this.showGeoModal.set(false);
     this.router.navigate(['/client/boutique/commande/confirmation']);
   }
 }

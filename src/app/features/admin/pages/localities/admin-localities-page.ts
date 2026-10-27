@@ -11,10 +11,9 @@ import {
   AdminLocalitiesService,
   AdminLocality,
   LocalityFormValue,
-  RequestedZone,
 } from '../../services/admin-localities.service';
 
-/** Console d'administration : localités (zones de SansFile) et zones demandées par les clients. */
+/** Console d'administration : localités (zones internes de SansFile, invisibles des clients). */
 @Component({
   selector: 'app-admin-localities-page',
   imports: [FormsModule, RouterLink, AdminBadge, AdminModal],
@@ -24,8 +23,9 @@ import {
         <div>
           <h1>Localités</h1>
           <p>
-            Les localités répartissent salons, clients, agents et boutique. Chaque localité a un
-            partenaire qui fournit les produits et dont le livreur livre les commandes.
+            Les localités organisent SansFile en interne : salons, agents, partenaires et frais de
+            livraison. Les clients n'en choisissent pas : ils voient les salons autour d'eux et la
+            boutique du partenaire le plus proche.
           </p>
         </div>
         <button type="button" class="admin-btn admin-btn--primary" (click)="openCreate()">
@@ -95,7 +95,6 @@ import {
                 <th>Livraison</th>
                 <th>Partenaire boutique</th>
                 <th>Salons</th>
-                <th>Clients &amp; coiffeurs</th>
                 <th>Agents</th>
                 <th>Commandes</th>
                 <th>Statut</th>
@@ -125,7 +124,6 @@ import {
                     }
                   </td>
                   <td>{{ l.salonsCount }}</td>
-                  <td>{{ l.usersCount }}</td>
                   <td>{{ l.agentsCount }}</td>
                   <td>{{ l.ordersCount }}</td>
                   <td>
@@ -182,7 +180,7 @@ import {
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="9" class="admin-table__empty">
+                  <td colspan="8" class="admin-table__empty">
                     @if (!service.localitiesLoaded()) {
                       Chargement des localités…
                     } @else {
@@ -194,38 +192,6 @@ import {
             </tbody>
           </table>
         </div>
-      </div>
-
-      <div class="admin-card requested">
-        <h2>Zones demandées par les utilisateurs</h2>
-        <p class="muted">
-          Clients et coiffeurs dont la localité n'existe pas encore. En créant une localité du même
-          nom, ils y sont rattachés automatiquement.
-        </p>
-        @if (requested() === null) {
-          <p class="muted">Chargement…</p>
-        } @else {
-          <ul>
-            @for (zone of requested(); track zone.name) {
-              <li>
-                <span
-                  ><strong>{{ zone.name }}</strong> — {{ zone.count }} demande{{
-                    zone.count > 1 ? 's' : ''
-                  }}</span
-                >
-                <button
-                  type="button"
-                  class="admin-btn admin-btn--sm admin-btn--outline"
-                  (click)="openCreate(zone)"
-                >
-                  Créer cette localité
-                </button>
-              </li>
-            } @empty {
-              <li class="muted">Aucune zone demandée pour le moment.</li>
-            }
-          </ul>
-        }
       </div>
 
       <app-admin-modal
@@ -266,7 +232,7 @@ import {
           </div>
           <label class="checkbox">
             <input type="checkbox" name="active" [(ngModel)]="form.active" />
-            Proposée aux clients (active)
+            Active (boutique ouverte si son partenaire l'est)
           </label>
           <div class="modal-actions">
             <button
@@ -308,36 +274,6 @@ import {
       a {
         color: var(--primary, #1e5af0);
         font-weight: 600;
-      }
-    }
-
-    .requested {
-      padding: 16px;
-
-      h2 {
-        margin: 0 0 4px;
-        font-size: 1rem;
-        font-weight: 800;
-      }
-
-      ul {
-        margin: 12px 0 0;
-        padding: 0;
-        list-style: none;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      li {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 8px 10px;
-        border-radius: 10px;
-        border: 1px solid var(--border-color, #e2e8f0);
-        font-size: 0.875rem;
       }
     }
 
@@ -401,7 +337,6 @@ export class AdminLocalitiesPage implements OnInit {
   private readonly errorMessages = inject(HttpErrorMessageService);
 
   protected readonly pageError = signal<string | null>(null);
-  protected readonly requested = signal<RequestedZone[] | null>(null);
   protected readonly formOpen = signal(false);
   protected readonly editing = signal<AdminLocality | null>(null);
   protected readonly saving = signal(false);
@@ -444,15 +379,11 @@ export class AdminLocalitiesPage implements OnInit {
       error: (err) =>
         this.pageError.set(this.errorMessages.message(err, 'Impossible de charger les localités.')),
     });
-    this.service.requestedZones().subscribe({
-      next: (zones) => this.requested.set(zones),
-      error: () => this.requested.set([]),
-    });
   }
 
-  protected openCreate(zone?: RequestedZone): void {
+  protected openCreate(): void {
     this.editing.set(null);
-    this.form = { name: zone?.name ?? '', deliveryFee: 1500, active: true };
+    this.form = { name: '', deliveryFee: 1500, active: true };
     this.formError.set(null);
     this.formOpen.set(true);
   }
@@ -483,10 +414,6 @@ export class AdminLocalitiesPage implements OnInit {
       next: () => {
         this.saving.set(false);
         this.formOpen.set(false);
-        if (!editing) {
-          // Les utilisateurs qui avaient demandé cette zone y sont rattachés : listes à jour
-          this.reload();
-        }
       },
       error: (err) => {
         this.saving.set(false);
@@ -502,8 +429,8 @@ export class AdminLocalitiesPage implements OnInit {
     const ok = await this.confirmService.confirm({
       title: disabling ? 'Désactiver la localité' : 'Réactiver la localité',
       message: disabling
-        ? `« ${locality.name} » ne sera plus proposée aux clients. Ses salons, comptes et commandes restent rattachés.`
-        : `« ${locality.name} » sera de nouveau proposée aux clients.`,
+        ? `La boutique de « ${locality.name} » fermera pour les clients. Ses salons et commandes restent rattachés.`
+        : `La boutique de « ${locality.name} » rouvrira si son partenaire est actif.`,
       confirmLabel: disabling ? 'Désactiver' : 'Réactiver',
       variant: disabling ? 'danger' : 'primary',
     });
@@ -514,13 +441,7 @@ export class AdminLocalitiesPage implements OnInit {
   }
 
   protected isUnused(l: AdminLocality): boolean {
-    return (
-      !l.partnerId &&
-      l.salonsCount === 0 &&
-      l.usersCount === 0 &&
-      l.agentsCount === 0 &&
-      l.ordersCount === 0
-    );
+    return !l.partnerId && l.salonsCount === 0 && l.agentsCount === 0 && l.ordersCount === 0;
   }
 
   protected async remove(locality: AdminLocality): Promise<void> {

@@ -5,7 +5,8 @@ import { Salon, SalonAction } from '../models/salon';
 import { TicketOwner } from '../models/ticket-owner';
 import { API_CONFIG } from '../../core/config/api.config';
 import { HttpErrorMessageService } from './http-error-message.service';
-import { LocalityService } from './locality.service';
+import { UserPositionService } from './user-position.service';
+import { distanceKm, isValidPoint } from '../utils/geo';
 
 /** Recherche sans accents ni majuscules : « medina » trouve « Médina ». */
 function normalizeSearch(value: string): string {
@@ -35,7 +36,7 @@ export const DEFAULT_TICKET_OWNERS: readonly TicketOwner[] = [
 export class SalonService {
   private readonly http = inject(HttpClient);
   private readonly errorMessages = inject(HttpErrorMessageService);
-  private readonly localityService = inject(LocalityService);
+  private readonly positions = inject(UserPositionService);
   private readonly baseUrl = API_CONFIG.baseUrl;
 
   // ── State Signals ───────────────────────────────────────────
@@ -53,32 +54,40 @@ export class SalonService {
   readonly customOwnerName = signal<string>('');
 
   // ── Filtered Salons Computed ────────────────────────────────
-  /**
-   * Salons de la localité regardée (sélecteur de l'en-tête). Une recherche porte sur toutes les
-   * localités : un client doit retrouver son salon habituel même s'il est ailleurs.
-   */
+  /** Salons autour du client, du plus proche au plus loin ; une recherche porte sur tous les salons. */
   readonly filteredSalons = computed(() => {
     const query = normalizeSearch(this.searchQuery());
     const list = this.salons();
-    if (!query) {
-      return this.inViewedLocality(list);
-    }
-    return list.filter((salon) =>
-      [salon.name, salon.location, salon.district, this.localityNameOf(salon)].some((value) =>
-        normalizeSearch(value ?? '').includes(query),
-      ),
+    return this.byDistance(
+      query
+        ? list.filter((salon) =>
+            [salon.name, salon.location, salon.district, salon.localityName].some((value) =>
+              normalizeSearch(value ?? '').includes(query),
+            ),
+          )
+        : list,
     );
   });
 
-  /** Salons de la localité regardée (toutes si « Toutes les localités »). */
-  inViewedLocality(list: readonly Salon[]): readonly Salon[] {
-    const localityId = this.localityService.viewedLocalityId();
-    return localityId === null ? list : list.filter((s) => s.localityId === localityId);
+  /** Du plus proche au plus loin de la position du téléphone ; les salons sans GPS à la fin. */
+  byDistance(list: readonly Salon[]): readonly Salon[] {
+    if (!this.positions.position()) return list;
+    return list
+      .map((salon) => ({ salon, km: this.distanceOf(salon) ?? Number.POSITIVE_INFINITY }))
+      .sort((a, b) => a.km - b.km)
+      .map((entry) => entry.salon);
   }
 
-  /** Nom de la localité d'un salon (fourni par le serveur, sinon retrouvé dans la liste). */
+  /** Distance (km) entre le téléphone et le salon ; null sans position ou pour un salon sans GPS. */
+  distanceOf(salon: Salon): number | null {
+    const here = this.positions.position();
+    if (!here || !isValidPoint(salon.latitude, salon.longitude)) return null;
+    return distanceKm(here, { latitude: salon.latitude!, longitude: salon.longitude! });
+  }
+
+  /** Commune du salon (fournie par le serveur) : affichée avec son quartier. */
   localityNameOf(salon: Salon): string | null {
-    return salon.localityName ?? this.localityService.nameOf(salon.localityId ?? null);
+    return salon.localityName ?? null;
   }
 
   constructor() {
@@ -104,7 +113,7 @@ export class SalonService {
     }
     this.error.set(null);
 
-    // Tous les salons (la pagination par défaut du serveur s'arrête à 20) : filtrage par localité ici
+    // Tous les salons (la pagination par défaut du serveur s'arrête à 20) : triés par distance ici
     this.http
       .get<any[]>(`${this.baseUrl}${API_CONFIG.endpoints.salons}`, {
         params: { page: 0, size: 1000 },
