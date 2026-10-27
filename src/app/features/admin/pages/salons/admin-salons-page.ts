@@ -1582,12 +1582,18 @@ export class AdminSalonsPage {
   protected async deleteSalon(salon: Salon): Promise<void> {
     const confirmed = await this.confirmService.confirm({
       title: 'Suppression de Salon',
-      message: `Êtes-vous sûr de vouloir supprimer définitivement le salon "${salon.name}" ? Cette action est irréversible.`,
+      message: `Supprimer définitivement le salon "${salon.name}" ? Son coiffeur redevient un simple client. Un salon qui a déjà eu des tickets ne peut pas être supprimé : désactivez-le plutôt (icône œil barré).`,
       confirmLabel: 'Supprimer le salon',
       variant: 'danger',
     });
     if (confirmed) {
-      this.data.deleteSalon(salon.id);
+      this.actionError.set(null);
+      this.data.deleteSalon(salon.id).subscribe({
+        error: (err) =>
+          this.actionError.set(
+            this.errorMessages.message(err, 'Le salon n’a pas pu être supprimé. Réessayez.'),
+          ),
+      });
     }
   }
 }

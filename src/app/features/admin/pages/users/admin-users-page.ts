@@ -6,6 +6,7 @@ import { AdminPagination } from '../../components/admin-pagination/admin-paginat
 import { AdminModal } from '../../components/admin-modal/admin-modal';
 import { AdminImageUploader } from '../../components/admin-image-uploader/admin-image-uploader';
 import { AdminConfirmService } from '../../services/admin-confirm.service';
+import { HttpErrorMessageService } from '../../../../shared/services/http-error-message.service';
 
 @Component({
   selector: 'app-admin-users-page',
@@ -29,6 +30,12 @@ import { AdminConfirmService } from '../../services/admin-confirm.service';
           <span>Nouvel Utilisateur</span>
         </button>
       </div>
+
+      @if (actionError()) {
+        <div class="admin-form-alert admin-form-alert--danger" role="alert">
+          <span>{{ actionError() }}</span>
+        </div>
+      }
 
       <!-- Filter Toolbar -->
       <div class="admin-toolbar">
@@ -289,6 +296,9 @@ import { AdminConfirmService } from '../../services/admin-confirm.service';
 export class AdminUsersPage implements OnInit {
   protected readonly data = inject(AdminDataService);
   private readonly confirmService = inject(AdminConfirmService);
+  private readonly errorMessages = inject(HttpErrorMessageService);
+  /** Refus du serveur sur une action de la liste (suppression…). */
+  protected readonly actionError = signal<string | null>(null);
 
   protected searchQuery = '';
   protected roleFilter = 'all';
@@ -405,12 +415,18 @@ export class AdminUsersPage implements OnInit {
   protected async deleteUser(user: AdminClientUser): Promise<void> {
     const confirmed = await this.confirmService.confirm({
       title: 'Suppression Utilisateur',
-      message: `Êtes-vous sûr de vouloir supprimer définitivement l'utilisateur "${user.name}" (${user.phone}) ? Toutes ses données seront effacées.`,
+      message: `Supprimer définitivement le compte de "${user.name}" (${user.phone}) ? Ses notifications, proches et favoris sont effacés ; ses tickets et commandes restent dans l'historique, sans son nom de compte.`,
       confirmLabel: "Supprimer l'utilisateur",
       variant: 'danger',
     });
     if (confirmed) {
-      this.data.deleteUser(user.id, user.phone);
+      this.actionError.set(null);
+      this.data.deleteUser(user).subscribe({
+        error: (err) =>
+          this.actionError.set(
+            this.errorMessages.message(err, "L'utilisateur n'a pas pu être supprimé. Réessayez."),
+          ),
+      });
     }
   }
 }

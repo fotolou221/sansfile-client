@@ -43,6 +43,8 @@ export interface AdminCoiffeur {
 
 export interface AdminClientUser {
   id: string;
+  /** Identifiant de connexion (téléphone, ou e-mail pour l'administration) : sert à la suppression. */
+  login?: string;
   name: string;
   phone: string;
   district: string;
@@ -504,38 +506,25 @@ export class AdminDataService {
     }
   }
 
-  deleteSalon(id: string): void {
+  /**
+   * Supprime un salon. La ligne disparaît tout de suite ; si le serveur refuse (salon qui a déjà des tickets :
+   * à désactiver plutôt), elle revient et l'erreur est renvoyée à la page, qui l'affiche.
+   */
+  deleteSalon(id: string): Observable<unknown> {
+    const previous = this.salons();
+    const salon = previous.find((s) => s.id === id);
+    const numericId = salon?.numericId ?? Number(id);
     this.salons.update((list) => list.filter((s) => s.id !== id));
-
-    const numId = Number(id);
-    if (!isNaN(numId)) {
-      this.http
-        .delete(`${this.baseUrl}/salons/${numId}`)
-        .pipe(
-          tap(() => {
-            this.loadFromBackend();
-            this.salonService.loadSalons();
-          }),
-          catchError(() => of(null)),
-        )
-        .subscribe();
-    } else {
-      this.http.get<any[]>(`${this.baseUrl}/salons`).subscribe((allSalons) => {
-        const found = allSalons?.find((s: any) => s.slug === id || s.id?.toString() === id);
-        if (found && found.id) {
-          this.http
-            .delete(`${this.baseUrl}/salons/${found.id}`)
-            .pipe(
-              tap(() => {
-                this.loadFromBackend();
-                this.salonService.loadSalons();
-              }),
-              catchError(() => of(null)),
-            )
-            .subscribe();
-        }
-      });
-    }
+    return this.http.delete(`${this.baseUrl}/salons/${numericId}`).pipe(
+      tap(() => {
+        this.loadFromBackend();
+        this.salonService.loadSalons(true);
+      }),
+      catchError((err) => {
+        this.salons.set(previous);
+        return throwError(() => err);
+      }),
+    );
   }
 
   /**
@@ -1237,6 +1226,7 @@ export class AdminDataService {
                 .filter((u: any) => !u.authorities?.includes('ROLE_AGENT'))
                 .map((u: any) => ({
                   id: u.id ? u.id.toString() : `u-${Date.now()}`,
+                  login: u.login || undefined,
                   name:
                     `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.login || 'Utilisateur',
                   phone: u.phone || u.login || '+221 77 000 00 00',
@@ -1390,17 +1380,21 @@ export class AdminDataService {
     }
   }
 
-  deleteUser(id: string, login?: string): void {
-    this.clients.update((list) => list.filter((u) => u.id !== id));
-    if (login) {
-      this.http
-        .delete(`${this.baseUrl}/admin/users/${encodeURIComponent(login)}`)
-        .pipe(
-          tap(() => this.loadUsers()),
-          catchError(() => of(null)),
-        )
-        .subscribe();
-    }
+  /**
+   * Supprime un compte. La ligne disparaît tout de suite ; si le serveur refuse (agent qui a exercé…), elle
+   * revient et l'erreur est renvoyée à la page, qui l'affiche.
+   */
+  deleteUser(user: AdminClientUser): Observable<unknown> {
+    const previous = this.clients();
+    this.clients.update((list) => list.filter((u) => u.id !== user.id));
+    const login = user.login || user.phone;
+    return this.http.delete(`${this.baseUrl}/admin/users/${encodeURIComponent(login)}`).pipe(
+      tap(() => this.loadUsers()),
+      catchError((err) => {
+        this.clients.set(previous);
+        return throwError(() => err);
+      }),
+    );
   }
 
   // ── Settings ──────────────────────────────────────────────
