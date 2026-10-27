@@ -80,16 +80,7 @@ export class RelativeService {
     this.http
       .get<any[]>(`${this.baseUrl}${API_CONFIG.endpoints.relatives}`)
       .pipe(
-        map((data) =>
-          Array.isArray(data)
-            ? data.map((r) => ({
-                id: r.id ? r.id.toString() : `r-${Date.now()}`,
-                name: r.name || '',
-                relation: (r.relation ? r.relation.toLowerCase() : 'other') as RelativeRelation,
-                phone: r.phone || undefined,
-              }))
-            : [],
-        ),
+        map((data) => (Array.isArray(data) ? data.map((r) => toRelative(r)) : [])),
         tap((data) => {
           this.relatives.set(data);
           this.lastFetchedAt = Date.now();
@@ -115,7 +106,9 @@ export class RelativeService {
 
   getRelativeById(id: string | null): Observable<Relative | null> {
     if (!id) return of(null);
-    return this.http.get<Relative>(`${this.baseUrl}${API_CONFIG.endpoints.relatives}/${id}`).pipe(
+    return this.http.get<any>(`${this.baseUrl}${API_CONFIG.endpoints.relatives}/${id}`).pipe(
+      // Même forme que la liste (identifiant en texte) : sinon suppression et modification ne la retrouvent pas
+      map((r) => toRelative(r)),
       catchError((err) => {
         console.error(`[RelativeService] Error loading relative ${id}:`, err);
         this.error.set(this.errorMessages.message(err, 'Impossible de charger ce proche.'));
@@ -138,12 +131,7 @@ export class RelativeService {
     };
 
     return this.http.post<any>(`${this.baseUrl}${API_CONFIG.endpoints.relatives}`, payload).pipe(
-      map((saved) => ({
-        id: saved.id ? saved.id.toString() : `r-${Date.now()}`,
-        name: saved.name || name.trim(),
-        relation: (saved.relation ? saved.relation.toLowerCase() : relation) as RelativeRelation,
-        phone: saved.phone || phone?.trim(),
-      })),
+      map((saved) => toRelative(saved, { name: name.trim(), relation, phone: phone?.trim() })),
       tap((savedRelative) => {
         this.relatives.update((prev) => [
           ...prev.filter((r) => r.id !== savedRelative.id),
@@ -178,6 +166,7 @@ export class RelativeService {
     relation: RelativeRelation,
     phone?: string,
   ): Observable<Relative | null> {
+    id = String(id);
     const numericId = Number(id) || null;
     const previousRelatives = this.relatives();
     this.error.set(null);
@@ -201,12 +190,7 @@ export class RelativeService {
     return this.http
       .put<any>(`${this.baseUrl}${API_CONFIG.endpoints.relatives}/${id}`, payload)
       .pipe(
-        map((saved) => ({
-          id: saved.id ? saved.id.toString() : id,
-          name: saved.name || name.trim(),
-          relation: (saved.relation ? saved.relation.toLowerCase() : relation) as RelativeRelation,
-          phone: saved.phone || phone?.trim(),
-        })),
+        map((saved) => toRelative(saved, updatedLocal)),
         tap((savedRelative) => {
           this.relatives.update((prev) => prev.map((r) => (r.id === id ? savedRelative : r)));
         }),
@@ -228,21 +212,38 @@ export class RelativeService {
       );
   }
 
+  /** Retire le proche de l'écran tout de suite ; s'il n'a pas pu être supprimé, il réapparaît avec l'erreur. */
   removeRelative(id: string): Observable<boolean> {
+    id = String(id);
+    const previousRelatives = this.relatives();
+    this.error.set(null);
     this.relatives.update((prev) => prev.filter((r) => r.id !== id));
 
     return this.http.delete(`${this.baseUrl}${API_CONFIG.endpoints.relatives}/${id}`).pipe(
       map(() => true),
       catchError((err) => {
         console.warn(`[RelativeService] API delete failed for ${id}:`, err);
+        this.relatives.set(previousRelatives);
         this.error.set(
           this.errorMessages.message(
             err,
-            'Suppression gardee localement. Connexion instable, verifiez votre reseau.',
+            'Impossible de supprimer ce proche. Vérifiez votre connexion et réessayez.',
           ),
         );
-        return of(true);
+        return of(false);
       }),
     );
   }
+}
+
+/** Proche tel que l'application le manipule : identifiant en texte, lien de parenté en minuscules. */
+function toRelative(raw: any, fallback?: Partial<Relative>): Relative {
+  return {
+    id: raw?.id != null ? String(raw.id) : (fallback?.id ?? `r-${Date.now()}`),
+    name: raw?.name || fallback?.name || '',
+    relation: (raw?.relation
+      ? String(raw.relation).toLowerCase()
+      : (fallback?.relation ?? 'autre')) as RelativeRelation,
+    phone: raw?.phone || fallback?.phone || undefined,
+  };
 }

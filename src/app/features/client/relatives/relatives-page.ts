@@ -46,7 +46,7 @@ import { Relative, RELATION_LABELS } from '../../../shared/models/relative';
           } @else if (relativeService.error()) {
             <app-error-state
               [message]="relativeService.error()!"
-              (retry)="relativeService.loadRelatives()"
+              (retry)="relativeService.loadRelatives(true)"
             />
           } @else {
             @for (relative of relativeService.relatives(); track relative.id) {
