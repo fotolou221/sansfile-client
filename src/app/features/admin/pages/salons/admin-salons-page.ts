@@ -12,6 +12,7 @@ import {
 import { QrCode } from '../../../../shared/components/qr-code/qr-code';
 import { Salon } from '../../../../shared/models/salon';
 import { AdminConfirmService } from '../../services/admin-confirm.service';
+import { HttpErrorMessageService } from '../../../../shared/services/http-error-message.service';
 import { AdminAgentsService } from '../../services/admin-agents.service';
 import { AdminLocalitiesService } from '../../services/admin-localities.service';
 import { ActivatedRoute } from '@angular/router';
@@ -44,6 +45,12 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
           <span>Nouveau Salon</span>
         </button>
       </div>
+
+      @if (actionError()) {
+        <div class="admin-form-alert admin-form-alert--danger" role="alert">
+          <span>{{ actionError() }}</span>
+        </div>
+      }
 
       <!-- Filter / Search & View Switcher Toolbar -->
       <div class="admin-toolbar">
@@ -82,6 +89,7 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
               <option value="all">Tous les statuts</option>
               <option value="open">Ouvert</option>
               <option value="closed">Fermé</option>
+              <option value="inactive">Désactivé</option>
             </select>
           </div>
 
@@ -176,9 +184,13 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
                       >
                     </td>
                     <td class="nowrap">
-                      <app-admin-badge [variant]="salon.status === 'open' ? 'success' : 'danger'">
-                        {{ salon.status === 'open' ? 'Ouvert' : 'Fermé' }}
-                      </app-admin-badge>
+                      @if (salon.active === false) {
+                        <app-admin-badge variant="neutral">Désactivé</app-admin-badge>
+                      } @else {
+                        <app-admin-badge [variant]="salon.status === 'open' ? 'success' : 'danger'">
+                          {{ salon.status === 'open' ? 'Ouvert' : 'Fermé' }}
+                        </app-admin-badge>
+                      }
                     </td>
                     <td class="nowrap" style="text-align: right;">
                       <div class="admin-table__actions">
@@ -257,6 +269,44 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
                         </button>
                         <button
                           type="button"
+                          class="admin-icon-btn"
+                          [class.admin-icon-btn--success]="salon.active === false"
+                          (click)="toggleActive(salon)"
+                          [title]="
+                            salon.active === false
+                              ? 'Réactiver le salon'
+                              : 'Désactiver le salon (invisible des clients)'
+                          "
+                        >
+                          @if (salon.active === false) {
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                            >
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          } @else {
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                            >
+                              <path
+                                d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
+                              />
+                              <path
+                                d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"
+                              />
+                              <line x1="1" y1="1" x2="23" y2="23" />
+                            </svg>
+                          }
+                        </button>
+                        <button
+                          type="button"
                           class="admin-icon-btn admin-icon-btn--danger"
                           (click)="deleteSalon(salon)"
                           title="Supprimer"
@@ -305,9 +355,13 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
               <div class="admin-grid-card__cover">
                 <img [src]="salon.coverUrl || salon.avatarUrl" [alt]="salon.name" />
                 <div class="admin-grid-card__status-tag">
-                  <app-admin-badge [variant]="salon.status === 'open' ? 'success' : 'danger'">
-                    {{ salon.status === 'open' ? 'Ouvert' : 'Fermé' }}
-                  </app-admin-badge>
+                  @if (salon.active === false) {
+                    <app-admin-badge variant="neutral">Désactivé</app-admin-badge>
+                  } @else {
+                    <app-admin-badge [variant]="salon.status === 'open' ? 'success' : 'danger'">
+                      {{ salon.status === 'open' ? 'Ouvert' : 'Fermé' }}
+                    </app-admin-badge>
+                  }
                 </div>
               </div>
 
@@ -391,6 +445,34 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                     </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="admin-icon-btn"
+                    [class.admin-icon-btn--success]="salon.active === false"
+                    (click)="toggleActive(salon)"
+                    [title]="
+                      salon.active === false
+                        ? 'Réactiver le salon'
+                        : 'Désactiver le salon (invisible des clients)'
+                    "
+                  >
+                    @if (salon.active === false) {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                          d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
+                        />
+                        <path
+                          d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"
+                        />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    }
                   </button>
                   <button
                     type="button"
@@ -954,6 +1036,9 @@ import { buildSalonTicketUrl } from '../../../../core/config/app-origin';
 export class AdminSalonsPage {
   protected readonly data = inject(AdminDataService);
   private readonly confirmService = inject(AdminConfirmService);
+  private readonly errorMessages = inject(HttpErrorMessageService);
+  /** Échec d'une action sur la liste (désactivation…). */
+  protected readonly actionError = signal<string | null>(null);
   protected readonly agents = inject(AdminAgentsService);
 
   protected readonly localities = inject(AdminLocalitiesService);
@@ -1126,7 +1211,11 @@ export class AdminSalonsPage {
         (salon.location && salon.location.toLowerCase().includes(q)) ||
         (salon.ownerName && salon.ownerName.toLowerCase().includes(q));
 
-      const matchStatus = st === 'all' || salon.status === st;
+      const matchStatus =
+        st === 'all' ||
+        (st === 'inactive'
+          ? salon.active === false
+          : salon.active !== false && salon.status === st);
       const matchLocality =
         locality === 'all' ||
         (locality === 'none' ? !salon.localityId : String(salon.localityId ?? '') === locality);
@@ -1460,6 +1549,34 @@ export class AdminSalonsPage {
     } catch (err) {
       console.warn('[AdminSalonsPage] Clipboard copy failed:', err);
     }
+  }
+
+  /**
+   * Désactivation (salon fermé définitivement, en pause…) : invisible des clients et plus aucun ticket, sans
+   * rien supprimer. Différente de « Fermé », l'ouverture du jour gérée par le coiffeur.
+   */
+  protected async toggleActive(salon: Salon): Promise<void> {
+    const deactivating = salon.active !== false;
+    const waiting =
+      salon.peopleWaiting > 0
+        ? ` Les ${salon.peopleWaiting} personne(s) déjà en file gardent leur ticket.`
+        : '';
+    const confirmed = await this.confirmService.confirm({
+      title: deactivating ? 'Désactiver le salon' : 'Réactiver le salon',
+      message: deactivating
+        ? `« ${salon.name} » disparaîtra de l'application des clients et n'acceptera plus de tickets.${waiting} Vous pourrez le réactiver à tout moment.`
+        : `« ${salon.name} » sera de nouveau visible des clients et pourra recevoir des tickets.`,
+      confirmLabel: deactivating ? 'Désactiver' : 'Réactiver',
+      variant: deactivating ? 'danger' : 'primary',
+    });
+    if (!confirmed) return;
+    this.actionError.set(null);
+    this.data.setSalonActive(salon.id, !deactivating).subscribe({
+      error: (err) =>
+        this.actionError.set(
+          this.errorMessages.message(err, 'Le salon n’a pas pu être modifié. Réessayez.'),
+        ),
+    });
   }
 
   protected async deleteSalon(salon: Salon): Promise<void> {

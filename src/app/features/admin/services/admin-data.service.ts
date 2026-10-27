@@ -538,6 +538,21 @@ export class AdminDataService {
     }
   }
 
+  /**
+   * Désactive (ou réactive) un salon : désactivé, il disparaît de l'application des clients et n'accepte plus
+   * de ticket ; les tickets déjà pris restent valables.
+   */
+  setSalonActive(id: string, active: boolean): Observable<unknown> {
+    const salon = this.salons().find((s) => s.id === id);
+    const numericId = salon?.numericId ?? Number(id);
+    return this.http.put(`${this.baseUrl}/salons/${numericId}/activation`, { active }).pipe(
+      tap(() => {
+        this.salons.update((list) => list.map((s) => (s.id === id ? { ...s, active } : s)));
+        this.salonService.loadSalons(true);
+      }),
+    );
+  }
+
   toggleSalonStatus(id: string): void {
     const current = this.salons().find((s) => s.id === id);
     const newStatus = current?.status === 'open' ? 'closed' : 'open';

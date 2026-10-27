@@ -137,7 +137,16 @@ import { FavoritesService } from '../../../shared/services/favorites.service';
 
             <!-- Primary CTA Button -->
             <section class="salon-detail__cta">
-              @if (isSalonOpen()) {
+              @if (salon.active === false) {
+                <button
+                  type="button"
+                  class="salon-detail__btn salon-detail__btn--disabled"
+                  disabled
+                  title="Ce salon ne prend plus de tickets sur SansFile."
+                >
+                  <span>Ce salon ne prend plus de tickets</span>
+                </button>
+              } @else if (isSalonOpen()) {
                 <a
                   [routerLink]="['/client/salons', currentSalon()!.id, 'ticket']"
                   class="salon-detail__btn"

@@ -321,6 +321,16 @@ export class RealtimeSyncService {
       }),
     );
 
+    // Salon désactivé par l'administration : retiré des listes des clients ; réactivé : on recharge
+    const isThisSalon = (s: Salon) =>
+      (salonId && (s.id === salonId || (s.numericId && s.numericId.toString() === salonId))) ||
+      (slug && (s.slug === slug || s.id === slug));
+    if (data.active === false) {
+      this.salonService.salons.update((list) => list.filter((s) => !isThisSalon(s)));
+    } else if (data.active === true && !this.salonService.salons().some(isThisSalon)) {
+      this.salonService.loadSalons(true);
+    }
+
     // 2. Update AdminDataService.salons
     this.adminDataService.salons.update((list) =>
       list.map((s) => {
@@ -330,6 +340,7 @@ export class RealtimeSyncService {
         if (matches) {
           return {
             ...s,
+            ...(typeof data.active === 'boolean' ? { active: data.active } : {}),
             ...(newStatus !== undefined ? { status: newStatus as any } : {}),
             ...(newWaiting !== undefined ? { peopleWaiting: newWaiting } : {}),
             ...(newEstimated !== undefined ? { estimatedWaitMinutes: newEstimated } : {}),

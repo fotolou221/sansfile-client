@@ -11,7 +11,10 @@ export interface Salon {
   readonly name: string;
   readonly location: string;
   readonly district: string;
+  /** Ouverture du jour, gérée par le coiffeur. */
   readonly status: 'open' | 'closed';
+  /** false : désactivé par l'administration (invisible des clients, plus aucun ticket). */
+  readonly active?: boolean;
   readonly peopleWaiting: number;
   readonly estimatedWaitMinutes?: number;
   readonly avatarUrl: string;
