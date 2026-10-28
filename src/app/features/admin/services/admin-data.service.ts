@@ -106,13 +106,7 @@ export class AdminDataService {
     if (!this.hasAdminSession()) {
       return;
     }
-    // 1. Dashboard KPIs & Live Stats (Aggregate metrics)
-    this.http
-      .get<any>(`${this.baseUrl}/admin/dashboard-stats`)
-      .pipe(catchError(() => of(null)))
-      .subscribe();
-
-    // 2. Salons (Single source of truth)
+    // 1. Salons (Single source of truth)
     this.loadSalons();
 
     // 3. Product Categories
@@ -230,6 +224,7 @@ export class AdminDataService {
   readonly products = signal<Product[]>([]);
   readonly orders = signal<Order[]>([]);
   readonly clients = signal<AdminClientUser[]>([]);
+  readonly sansfileCollected = signal(0);
 
   // ── Platform Settings State ───────────────────────────────
   readonly settings = signal<PlatformSettings>({
@@ -270,6 +265,7 @@ export class AdminDataService {
       servedTickets,
       totalOrders,
       totalRevenue,
+      sansfileCollected: this.sansfileCollected(),
       totalClients,
     };
   });
@@ -1114,6 +1110,7 @@ export class AdminDataService {
     if (!token) {
       return;
     }
+    this.loadDashboardStats();
     this.http
       .get<any[]>(`${this.baseUrl}/orders`, {
         params: { page: 0, size: 1000, sort: 'createdDate,desc' },
@@ -1132,6 +1129,18 @@ export class AdminDataService {
           console.error('[AdminDataService] Error loading orders:', err);
           return of([]);
         }),
+      )
+      .subscribe();
+  }
+
+  private loadDashboardStats(): void {
+    this.http
+      .get<any>(`${this.baseUrl}/admin/dashboard-stats`)
+      .pipe(
+        tap((dashboard) => {
+          this.sansfileCollected.set(Number(dashboard?.sansfileCollected) || 0);
+        }),
+        catchError(() => of(null)),
       )
       .subscribe();
   }

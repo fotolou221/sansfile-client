@@ -4,8 +4,8 @@
 
 .admin-stat-card {
   background: var(--bg-card, #ffffff);
-  border-radius: 18px;
-  padding: 22px 20px;
+  border-radius: 16px;
+  padding: 16px 14px;
   border: 1px solid var(--border-color, #e2e8f0);
   box-shadow: var(--shadow-sm, 0 4px 16px rgba(0, 0, 0, 0.03));
   transition:
@@ -42,21 +42,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .admin-stat-card__icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   background: var(--primary-light, #eef2ff);
   color: var(--primary, #1e5af0);
   display: grid;
   place-items: center;
 
   ::ng-deep svg {
-    width: 22px;
-    height: 22px;
+    width: 19px;
+    height: 19px;
   }
 }
 
@@ -83,24 +83,25 @@
 }
 
 .admin-stat-card__label {
-  font-size: 0.8125rem;
+  font-size: 0.7rem;
   font-weight: 600;
   color: var(--text-secondary, #64748b);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.035em;
   margin-bottom: 6px;
 }
 
 .admin-stat-card__value {
-  font-size: 1.85rem;
+  font-size: clamp(1rem, 1.3vw, 1.5rem);
   font-weight: 900;
   color: var(--text-primary, #0f172a);
-  line-height: 1.1;
+  line-height: 1.15;
   margin-bottom: 4px;
+  overflow-wrap: anywhere;
 }
 
 .admin-stat-card__subtext {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: var(--text-muted, #94a3b8);
   font-weight: 500;
 }
